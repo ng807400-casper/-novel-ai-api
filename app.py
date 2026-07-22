@@ -7,12 +7,12 @@ from datetime import datetime
 st.set_page_config(page_title="專業小說家 AI 寫作工作站", page_icon="✍️", layout="wide")
 
 st.title("✍️ 專業小說家 AI 寫作工作站")
-st.caption("具備長篇結構控管、深度角色生命週期管理、伏筆錨點與 JSON 存檔功能的寫作介面")
+st.caption("具備長篇結構控管、動態角色卡片管理、伏筆錨點與 JSON 存檔功能的寫作介面")
 
 # 設定 Render API 網址
 API_URL = "https://novel-ai-api-himy.onrender.com/v1/chapter/stream"
 
-# ================= 預設資料設定 =================
+# ================= 預設資料與角色清單初始化 =================
 default_data = {
     "volume_title": "第一集：失聲火車",
     "target_volume_words": 100000,
@@ -24,34 +24,6 @@ default_data = {
 2. 阿豪已發聲陣亡（已死）；西裝男半身麻痺昏迷。
 3. 蘇默的手機電量鎖定在 1%，為永久規則標記。""",
     "story_bg": "列車陷入絕對死寂，時間停滯，手機電量是唯一的生命線。",
-    
-    # 升級：結構化角色詳細設定
-    "detailed_characters": """【角色卡 1：蘇默 (主角)】
-• 與主角關係：主角本人
-• 登場章節：第 1 章 | 預計退場：存活至最後
-• 角色個性：極度冷靜、邏輯推算強、理智大於感性
-• 當前生理/異變狀態：健康，但手機電量永久鎖定在 1% (規則標記)
-• 說話風格：簡短、理性、習慣用數據與物理現象分析局勢
-
-【角色卡 2：林欣】
-• 與主角關係：生死求生夥伴 (互相信任)
-• 登場章節：第 2 章 | 預計退場：預估第 25 章大高潮
-• 角色個性：細心、共情能力強、負責物資與心理支柱
-• 當前生理/異變狀態：極度疲憊，輕微精神衰弱
-• 說話風格：輕聲細語、著重情感與直覺反應
-
-【角色卡 3：西裝男】
-• 與主角關係：暫時合作對象 / 不確定因素
-• 登場章節：第 1 章 | 預計退場：預估第 15 章 (規則侵蝕)
-• 角色個性：自私固執、功利主義，但在死亡威脅下願意配合
-• 當前生理/異變狀態：半身麻痺異變，可感應死寂微波頻率，處於昏迷弱化狀態
-• 說話風格：沙啞、斷斷續續、帶著焦慮與戒心
-
-【角色卡 4：阿豪 (已退場/陣亡)】
-• 與主角關係：前期車廂乘客
-• 登場章節：第 1 章 | 退場章節：第 4 章 (發聲違規遭吞噬陣亡)
-• 狀態：確定死亡 (不可出現在當前場景)""",
-
     "target_chapter_words": 3300,
     "pov_setting": "第一人稱 (蘇默視角)",
     "tone_setting": "極度壓抑、懸疑冷酷、理性推算",
@@ -61,6 +33,58 @@ default_data = {
     "writing_taboos": "• 禁止出現感性說教台詞\n• 禁止主角無故陷入驚慌失措\n• 對話需簡短、注重環境物理描寫",
     "generated_content": ""
 }
+
+# 預設角色結構化列表
+default_character_list = [
+    {
+        "id": "c1",
+        "name": "蘇默",
+        "relation": "主角本人",
+        "summary": "冷靜理工男，善於利用物理知識與環境細節推算規則邊界。",
+        "entry_chap": 1,
+        "exit_chap": "存活至最後",
+        "personality": "極度理智、數據導向、冷靜、理性大於感性",
+        "status": "健康，手機電量永久鎖定在 1% (規則標記)",
+        "speech_style": "簡短、條理分明、習慣用數據與物理現象分析局勢"
+    },
+    {
+        "id": "c2",
+        "name": "林欣",
+        "relation": "生死求生夥伴",
+        "summary": "細心的女性求生者，提供物資調配與心理支柱。",
+        "entry_chap": 2,
+        "exit_chap": "預估第 25 章",
+        "personality": "細心、共情能力強、直覺敏銳",
+        "status": "極度疲憊，輕微精神衰弱",
+        "speech_style": "輕聲細語、著重情感與直覺反應"
+    },
+    {
+        "id": "c3",
+        "name": "西裝男",
+        "relation": "暫時合作對象 / 不確定因素",
+        "summary": "因規則陷入半身麻痺的神秘乘客，能感應死寂頻率。",
+        "entry_chap": 1,
+        "exit_chap": "預估第 15 章",
+        "personality": "自私功利，但在死亡威脅下願意配合",
+        "status": "半身麻痺異變，可感應微波頻率，目前處於昏迷弱化狀態",
+        "speech_style": "沙啞、斷斷續續、帶有焦慮與戒心"
+    },
+    {
+        "id": "c4",
+        "name": "阿豪",
+        "relation": "前期車廂乘客 (已陣亡)",
+        "summary": "餐車廂極度驚恐的乘客，因違規發聲遭吞噬。",
+        "entry_chap": 1,
+        "exit_chap": "第 4 章 (已陣亡)",
+        "personality": "極度恐慌、情緒失控",
+        "status": "確定死亡 (不可出現在當前場景)",
+        "speech_style": "結巴、哀求、驚恐慘叫"
+    }
+]
+
+# Session State 初始化
+if "character_list" not in st.session_state:
+    st.session_state["character_list"] = default_character_list
 
 # ================= 頂部：檔案匯入/匯出控制區 =================
 st.subheader("💾 紀錄與存檔管理")
@@ -72,11 +96,13 @@ with col_file1:
         try:
             loaded_data = json.load(uploaded_file)
             default_data.update(loaded_data)
-            st.success("✅ 成功載入歷史紀錄！頁面欄位已更新。")
+            if "character_list" in loaded_data:
+                st.session_state["character_list"] = loaded_data["character_list"]
+            st.success("✅ 成功載入歷史紀錄與角色卡清單！")
         except Exception as e:
             st.error(f"檔案格式錯誤：{str(e)}")
 
-# ================= 側邊欄：宏觀架構與深度角色卡 =================
+# ================= 側邊欄：宏觀架構與動態角色卡管理 =================
 with st.sidebar:
     st.header("📚 1. 宏觀架構 (本冊/全書設定)")
     volume_title = st.text_input("本冊/本集名稱", value=default_data["volume_title"])
@@ -97,13 +123,62 @@ with st.sidebar:
     story_bg = st.text_area("🌌 世界觀與運作鐵律", value=default_data["story_bg"], height=80)
     
     st.divider()
-    st.subheader("👥 深度角色卡與生命週期")
-    detailed_characters = st.text_area(
-        "角色動態與生死狀態 (登場/退場/關係/性格)",
-        value=default_data["detailed_characters"],
-        height=320,
-        help="包含了登場/退場時間、與主角關係、生理異變狀態與說話風格"
-    )
+    
+    # ---------------- 互動式角色卡清單區 ----------------
+    col_char_title, col_char_add = st.columns([3, 1])
+    with col_char_title:
+        st.subheader("👥 角色清單庫")
+    with col_char_add:
+        if st.button("➕ 新增", help="點擊新增一位角色"):
+            new_id = f"c_{int(datetime.now().timestamp())}"
+            st.session_state["character_list"].append({
+                "id": new_id,
+                "name": "新角色名稱",
+                "relation": "與主角關係",
+                "summary": "一句話簡介（方便快速識別）",
+                "entry_chap": current_chap,
+                "exit_chap": "未定",
+                "personality": "性格特質",
+                "status": "當前生理/異變狀態",
+                "speech_style": "對話/口吻風格"
+            })
+            st.rerun()
+
+    # 渲染卡片式可折疊角色列表
+    updated_characters_text = ""
+    for idx, char in enumerate(st.session_state["character_list"]):
+        header_label = f"👤 {char['name']} ({char['relation']})"
+        with st.expander(header_label, expanded=False):
+            st.caption(f"💡 **簡介**：{char['summary']}")
+            
+            char['name'] = st.text_input("角色名稱", value=char['name'], key=f"name_{char['id']}")
+            char['relation'] = st.text_input("與主角關係", value=char['relation'], key=f"rel_{char['id']}")
+            char['summary'] = st.text_input("一句話簡介 (顯示於封面下欄)", value=char['summary'], key=f"sum_{char['id']}")
+            
+            c_col1, c_col2 = st.columns(2)
+            with c_col1:
+                char['entry_chap'] = st.text_input("登場章節", value=str(char['entry_chap']), key=f"entry_{char['id']}")
+            with c_col2:
+                char['exit_chap'] = st.text_input("預計退場/陣亡章節", value=str(char['exit_chap']), key=f"exit_{char['id']}")
+                
+            char['personality'] = st.text_area("性格特質", value=char['personality'], height=70, key=f"per_{char['id']}")
+            char['status'] = st.text_area("🩸 當前生理 / 異變狀態", value=char['status'], height=70, key=f"stat_{char['id']}")
+            char['speech_style'] = st.text_input("對話 / 口吻風格", value=char['speech_style'], key=f"speech_{char['id']}")
+            
+            if st.button("🗑️ 刪除此角色", key=f"del_{char['id']}"):
+                st.session_state["character_list"].pop(idx)
+                st.rerun()
+
+        # 自動組裝發送給 AI 的提示文字
+        updated_characters_text += f"""
+【角色：{char['name']}】
+• 關係：{char['relation']} | 簡介：{char['summary']}
+• 登場：第 {char['entry_chap']} 章 | 退場：{char['exit_chap']}
+• 性格：{char['personality']}
+• 當前生理/異變狀態：{char['status']}
+• 說話風格：{char['speech_style']}
+---
+"""
 
 # ================= 主畫面：微觀單章寫作與控管 =================
 st.subheader(f"📖 2. 微觀寫作：{volume_title} — 第 {current_chap} 章 / 共 {total_chaps} 章")
@@ -165,7 +240,7 @@ if generate_btn:
         "total_chapters": total_chaps,
         "previous_volumes_summary": previous_volumes_summary,
         "story_background": combined_background,
-        "character_profiles": detailed_characters, # 帶入升級後的深度角色卡
+        "character_profiles": updated_characters_text, # 傳入動態組裝的角色陣容
         "chapter_outline": combined_chapter_outline,
         "previous_summary": previous_summary
     }
@@ -200,7 +275,7 @@ if st.session_state["generated_text"]:
         "volume_overall_outline": volume_overall_outline,
         "previous_volumes_summary": previous_volumes_summary,
         "story_bg": story_bg,
-        "detailed_characters": detailed_characters,
+        "character_list": st.session_state["character_list"], # 存檔時保存完整角色卡結構
         "target_chapter_words": target_chapter_words,
         "pov_setting": pov_setting,
         "tone_setting": tone_setting,
