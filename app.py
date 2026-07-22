@@ -416,9 +416,10 @@ if generate_btn:
 
         try:
             genai.configure(api_key=active_api_key)
-            # 使用官方推薦模型
-            model = genai.GenerativeModel('gemini-1.5-pro-latest')
-            
+
+# 替換為最新的免費主力模型：
+model = genai.GenerativeModel('gemini-2.5-flash')
+
             output_box = st.empty()
             full_text = ""
             
