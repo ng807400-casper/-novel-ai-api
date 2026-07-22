@@ -7,7 +7,7 @@ from datetime import datetime
 st.set_page_config(page_title="專業小說家 AI 寫作工作站", page_icon="✍️", layout="wide")
 
 st.title("✍️ 專業小說家 AI 全書寫作工作站")
-st.caption("平時極簡流暢、進階可隨心調校的懸疑/規則小說創作主控台")
+st.caption("平時極簡流暢、進階可隨心調校（含動態角色視角切換）的懸疑/規則小說創作主控台")
 
 API_URL = "https://novel-ai-api-himy.onrender.com/v1/chapter/stream"
 
@@ -64,12 +64,12 @@ default_data = {
     # 當前微觀寫作參數
     "current_vol_title": "第一集：失聲火車",
     "current_chap": 6,
-    "total_chaps": 30,
     "target_chapter_words": 3300,
     "time_and_environment": "現實錨點：06:52 (鎖死) | 車廂內實際流逝時間：第 2 小時 | 氣溫 12°C",
     "sensory_details": "• 視覺：昏暗死寂冷白光，西裝男左半身黑綠色菌絲，手機螢幕下降的電量％數。\n• 聽覺：絕對死寂，僅有呼吸聲與低溫下金屬收縮的牙酸微響。\n• 體感/嗅覺：冷汗浸濕衣物，空氣中濃重金屬鏽蝕與腐敗血腥味。",
     "pacing_setting": "中速推演 (解謎/搜查/對話 - 長短句交替)",
-    "pov_setting": "第一人稱 (蘇默視角)",
+    "pov_type": "第一人稱",
+    "pov_character": "蘇默",
     "tone_setting": "極度壓抑、懸疑冷酷、理性推算",
     "previous_summary": "上一章（第 5 章）結尾：蘇默與西裝男用體重與公事包卡住異變柱。所有人手機時間停在 06:52，但流逝的體力與持續下降的電量提醒著蘇默時間仍在走。此時，蘇默手機收到條微波脈衝訊號，前方餐車門傳來規律叩擊聲...",
     "chapter_outline": "第六章：蘇默與林欣戒備地靠近鐵門，透過門縫觀察前方車廂，同時蘇默嘗試解析手機接收到的神秘訊號。",
@@ -98,7 +98,6 @@ with col_file1:
             loaded_data = json.load(uploaded_file)
             default_data.update(loaded_data)
             
-            # 安全防護：自動補齊 id 欄位避免 KeyError
             if "character_list" in loaded_data:
                 for idx, c in enumerate(loaded_data["character_list"]):
                     if "id" not in c: c["id"] = f"c_{idx}_{int(datetime.now().timestamp())}"
@@ -112,7 +111,7 @@ with col_file1:
         except Exception as e:
             st.error(f"檔案格式錯誤：{str(e)}")
 
-# ================= 側邊欄：全書設定 (自動背景備用) =================
+# ================= 側邊欄：全書設定 =================
 with st.sidebar:
     st.header("🌌 1. 全書世界觀與角色庫")
     book_title = st.text_input("全書書名", value=default_data["book_title"])
@@ -158,7 +157,9 @@ with st.sidebar:
             st.rerun()
 
     updated_characters_text = ""
+    char_names_list = []
     for c_idx, char in enumerate(st.session_state["character_list"]):
+        char_names_list.append(char['name'])
         with st.expander(f"👤 {char['name']} ({char['relation']})", expanded=False):
             char['name'] = st.text_input("名稱", value=char['name'], key=f"c_name_{char['id']}")
             char['relation'] = st.text_input("關係", value=char['relation'], key=f"c_rel_{char['id']}")
@@ -173,15 +174,13 @@ with st.sidebar:
                 st.rerun()
         updated_characters_text += f"【{char['name']} ({char['relation']})】\n• 簡介：{char['summary']}\n• 性格：{char['personality']}\n• 生理狀態：{char['status']} | SAN值：{char.get('sanity', '100%')}\n• 口吻：{char['speech_style']}\n• 台詞範例：{char.get('dialogue_example', '無')}\n---\n"
 
-    # 各集規劃 (收納在側邊欄最下層)
     volumes_summary_text = ""
     for v_idx, vol in enumerate(st.session_state["volumes_list"]):
         volumes_summary_text += f"• {vol['title']}: {vol['summary']}\n"
 
-# ================= 主畫面：極簡寫作工作區 =================
+# ================= 主畫面：寫作工作區 =================
 st.subheader(f"📖 2. 當前撰寫：{book_title}")
 
-# 1. 第一排核心開關：集數、章號、目標字數
 col_m1, col_m2, col_m3 = st.columns(3)
 with col_m1:
     vol_options = [v['title'] for v in st.session_state['volumes_list']]
@@ -189,22 +188,31 @@ with col_m1:
 with col_m2: current_chap = st.number_input("目前章節", value=default_data["current_chap"], min_value=1)
 with col_m3: target_chapter_words = st.number_input("🎯 本章目標字數", value=default_data["target_chapter_words"], step=500)
 
-# 2. 第二排核心內容：銜接點與本章大綱 (寫作時最常用的欄位)
 previous_summary = st.text_area("📌 上一章結尾錨點 (銜接點)", value=default_data["previous_summary"], height=80)
 chapter_outline = st.text_area("🎯 本章具體大綱與情節推進 (主要寫作指令)", value=default_data["chapter_outline"], height=100)
 
-# 3. ⚙️ 進階選單 (預設自動折疊，有需要再點開調校即可！)
-with st.expander("⚙️ 點此展開【本章進階微調參數】(時間線、五感、衝突翻轉、寫作禁忌)", expanded=False):
+# ⚙️ 進階選單：加入動態角色視角選擇
+with st.expander("⚙️ 點此展開【本章進階微調參數】(視角切換、五感、衝突翻轉)", expanded=False):
     col_env1, col_env2, col_env3 = st.columns(3)
-    with col_env1: time_and_environment = st.text_input("⏱️ 時間線與環境氣溫", value=default_data["time_and_environment"])
+    
+    with col_env1:
+        pov_type_list = ["第一人稱", "第三人稱限制視角", "第三人稱全知視角"]
+        pov_type = st.selectbox("👁️ 視角類型", pov_type_list, index=0)
+        
     with col_env2:
-        pov_list = ["第一人稱 (蘇默視角)", "第三人稱限制視角", "第三人稱全知視角"]
-        pov_setting = st.selectbox("👁️ 寫作視角", pov_list, index=0)
+        # 動態抓取角色列表作為第一人稱主角
+        default_pov_char = default_data.get("pov_character", "蘇默")
+        pov_char_index = char_names_list.index(default_pov_char) if default_pov_char in char_names_list else 0
+        pov_character = st.selectbox("👤 描寫視角主角 (第一人稱視角主導者)", char_names_list if char_names_list else ["蘇默"], index=pov_char_index)
+        
     with col_env3:
         pacing_list = ["中速推演 (解謎/搜查/對話 - 長短句交替)", "高速推進 (動作/戰鬥/逃跑 - 短句為主)", "慢速壓抑 (鋪陳/恐懼/氛圍 - 細節拉長)"]
         pacing_setting = st.selectbox("⚡ 寫作節奏與速度感", pacing_list, index=0)
 
-    tone_setting = st.text_input("🎭 本章情緒基調", value=default_data["tone_setting"])
+    col_sub1, col_sub2 = st.columns(2)
+    with col_sub1: time_and_environment = st.text_input("⏱️ 時間線與環境狀態", value=default_data["time_and_environment"])
+    with col_sub2: tone_setting = st.text_input("🎭 本章情緒基調", value=default_data["tone_setting"])
+
     sensory_details = st.text_area("🌫️ 五感描寫重點 (視覺/聽覺/嗅覺/體感)", value=default_data["sensory_details"], height=70)
 
     col_adv1, col_adv2 = st.columns(2)
@@ -217,7 +225,7 @@ with st.expander("⚙️ 點此展開【本章進階微調參數】(時間線、
 
     writing_taboos = st.text_area("🚫 寫作禁忌 (Negative Prompt)", value=default_data["writing_taboos"], height=70)
 
-# 預先對照的章節目錄清單 (放進折疊)
+# 預先對照的章節目錄清單
 with st.expander("📑 章節目錄大綱庫 (預先規劃對照區)", expanded=False):
     col_ch_t, col_ch_a = st.columns([3, 1])
     with col_ch_t: st.write("預先規劃各章大綱：")
@@ -245,12 +253,16 @@ if generate_btn:
     st.markdown("---")
     st.subheader("📝 本章生成成果：")
     
+    # 組合精準的視角指令
+    pov_final_instruction = f"{pov_type} (以角色【{pov_character}】作為第一人稱『我』來進行全身心描寫與心理思考)"
+    
     combined_chapter_outline = f"""
     【本章大綱】：{chapter_outline}
     【目標字數】：約 {target_chapter_words} 字
+    【描寫視角與核心主角】：{pov_final_instruction}
     【故事時間線與環境】：{time_and_environment}
     【寫作節奏與句式】：{pacing_setting}
-    【寫作視角】：{pov_setting} | 【情緒基調】：{tone_setting}
+    【情緒基調】：{tone_setting}
     【環境五感描寫重點】：
     {sensory_details}
     【核心衝突】：{scene_conflict}
@@ -329,7 +341,8 @@ if st.session_state["generated_text"]:
         "time_and_environment": time_and_environment,
         "pacing_setting": pacing_setting,
         "sensory_details": sensory_details,
-        "pov_setting": pov_setting,
+        "pov_type": pov_type,
+        "pov_character": pov_character,
         "tone_setting": tone_setting,
         "previous_summary": previous_summary,
         "scene_conflict": scene_conflict,
