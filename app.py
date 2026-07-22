@@ -362,7 +362,7 @@ st.divider()
 
 generate_btn = st.button("✨ 開始生成本章小說內文", type="primary", use_container_width=True)
 
-# ================= 直連 Gemini API 生成邏輯 (動態模型自動匹配) =================
+# ================= 直連 Gemini API 生成邏輯 (優先強制 1.5-flash 免費版) =================
 if generate_btn:
     if not active_api_key:
         st.error("❌ 找不到 Gemini API Key！請在側邊欄填入 Key，或在 Render 設定 GEMINI_API_KEY 環境變數。")
@@ -421,20 +421,19 @@ if generate_btn:
             available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
             
             selected_model_name = None
-            # 優先搜尋常見可用模型
-            for preferred in ["models/gemini-2.0-flash", "models/gemini-1.5-flash", "models/gemini-1.5-pro", "models/gemini-2.0-flash-exp"]:
+            # 強制優先尋找免費配額最穩定開放的 1.5 系列，避開限制為 0 的 2.0/2.5 預覽模型
+            for preferred in ["models/gemini-1.5-flash", "models/gemini-1.5-pro"]:
                 if preferred in available_models:
                     selected_model_name = preferred
                     break
             
-            # 如果預設的都沒找到，自動選擇清單中的第一個可用模型
+            # 備援機制：如果上述沒找到，自動選第一個可用模型
             if not selected_model_name and available_models:
                 selected_model_name = available_models[0]
                 
             if not selected_model_name:
                 st.error("❌ 找不到支援 generateContent 的 Gemini 模型，請檢查 API Key 是否有效。")
             else:
-                # 簡化模型名稱字串（移除 'models/' 前綴以符合 GenerativeModel 初始化格式）
                 clean_name = selected_model_name.replace("models/", "")
                 st.caption(f"🤖 自動連接可用模型：`{clean_name}`")
                 
