@@ -375,7 +375,7 @@ st.divider()
 
 generate_btn = st.button("✨ 開始生成本章小說內文", type="primary", use_container_width=True)
 
-# ================= 直連 Gemini API 生成邏輯 (優先強制 1.5-flash 免費版) =================
+# ================= 直連 Gemini API 生成邏輯 (完全匹配真實 API 清單) =================
 if generate_btn:
     if not active_api_key:
         st.error("❌ 找不到 Gemini API Key！請在側邊欄填入 Key，或在 Render 設定 GEMINI_API_KEY 環境變數。")
@@ -434,13 +434,18 @@ if generate_btn:
             available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
             
             selected_model_name = None
-            # 強制優先尋找免費配額最穩定開放的 1.5 系列，避開限制為 0 的 2.0/2.5 預覽模型
-            for preferred in ["models/gemini-1.5-flash", "models/gemini-1.5-pro"]:
+            # 依序比對你帳號真實支援的模型名稱（以 gemini-flash-latest 為第一優先，配額充裕且穩定）
+            for preferred in [
+                "models/gemini-flash-latest",
+                "models/gemini-2.0-flash",
+                "models/gemini-pro-latest",
+                "models/gemini-2.0-flash-lite"
+            ]:
                 if preferred in available_models:
                     selected_model_name = preferred
                     break
             
-            # 備援機制：如果上述沒找到，自動選第一個可用模型
+            # 備援機制：若清單外的狀況，選擇第一個能用的模型
             if not selected_model_name and available_models:
                 selected_model_name = available_models[0]
                 
