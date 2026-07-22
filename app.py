@@ -4,125 +4,126 @@ import json
 from datetime import datetime
 
 # 頁面基本設定
-st.set_page_config(page_title="專業小說家 AI 全書寫作工作站", page_icon="✍️", layout="wide")
+st.set_page_config(page_title="專業小說家 AI 寫作工作站", page_icon="✍️", layout="wide")
 
-st.title("✍️ 專業小說家 AI 全書寫作工作站 (終極完全體)")
-st.caption("具備三層架構、角色台詞範例、節奏密度控制、伏筆揭示控管與 JSON 全備份的寫作介面")
+st.title("✍️ 專業小說家 AI 全書寫作工作站")
+st.caption("平時極簡流暢、進階可隨心調校的懸疑/規則小說創作主控台")
 
 API_URL = "https://novel-ai-api-himy.onrender.com/v1/chapter/stream"
 
 # ================= 預設資料初始化 =================
 default_data = {
     "book_title": "《失號領域》",
-    "book_theme": "懸疑 / 克蘇魯 / 物理規則解謎",
-    "book_overall_secret": "列車與所有區域皆為規則實驗場，13 車車票是唯一的管理員密鑰。",
+    "book_theme": "懸疑 / 克蘇魯 / 規則怪談 / 物理解謎",
+    "book_overall_secret": "列車與區域皆為規則實驗場，13 車車票是唯一的管理員密鑰。現實時間被定格在 06:52，但列車空間內的時間與生理代謝仍在流逝。",
     
     # 規則與線索庫
-    "confirmed_rules": "1. 絕不可發聲。\n2. 車廂時間停滯。\n3. 持有 13 車車票者為標記對象。",
-    "unverified_hypotheses": "1. 手機電量 1% 可能是感應外部微波的接收器。\n2. 鐵門扣擊聲可能不是人類發出的。",
-    "clues_inventory": "• 13 車車票的特定折角痕跡\n• 手機 1% 電量閃爍的固定波長數據",
+    "confirmed_rules": "1. 絕不可發聲或製造劇烈物理撞擊音。\n2. 所有電子設備時間硬性鎖死在 06:52，但空間內實際時間仍在流逝。\n3. 持有 13 車車票者為標記對象。",
+    "unverified_hypotheses": "1. 手機基頻微波可能是接收外部異變脈衝的唯一接收器。\n2. 鐵門扣擊聲可能是受規則支配的機械式異變導體。",
+    "clues_inventory": "• 13 車車票右下角折角痕跡\n• 鎖死在 06:52 的手機時間與持續下降的電量\n• 微波定頻規律脈衝數據",
 
-    # 道具與物料庫
+    # 道具庫
     "items_inventory": [
-        {"name": "蘇默的手機", "status": "螢幕破裂，電量常駐 1% (不可充不可降)，頻率感應中", "owner": "蘇默"},
-        {"name": "13 車車票", "status": "右下角有特定折角痕跡，表面帶有微弱金屬光澤", "owner": "全員"},
-        {"name": "列車緊急手電筒", "status": "電量剩餘約 30%，光線微弱閃爍", "owner": "林欣"}
+        {"name": "蘇默的手機", "status": "時間鎖死在 06:52，電量隨著打字與亮屏正常損耗中", "owner": "蘇默"},
+        {"name": "13 車車票", "status": "右下角有特定折角痕跡", "owner": "全員"},
+        {"name": "公事包與外套", "status": "用來進行物理抗衡卡住異變柱", "owner": "西裝男"}
     ],
 
     "volumes_list": [
-        {"id": "v1", "title": "第一集：失聲火車", "target_words": 100000, "summary": "主角蘇默在陷入時間停滯與無聲鐵律的列車中醒來，利用物理知識推演規則邊界。"},
-        {"id": "v2", "title": "第二集：深淵迴響", "target_words": 120000, "summary": "進入第二異變區域，常駐 1% 電量的手機開始接收到外部微波訊息。"}
+        {"id": "v1", "title": "第一集：失聲火車", "target_words": 100000, "summary": "主角蘇默在時間鎖死在 06:52 的列車中醒來，利用物理知識推演規則邊界，在電量有限與無法發聲的絕境中求生。"}
     ],
     
-    # 角色卡 (新增台詞範例)
+    # 角色卡
     "character_list": [
         {
             "id": "c1", "name": "蘇默", "relation": "主角本人",
-            "summary": "冷靜理工男，善於利用物理知識推算規則邊界。",
-            "entry_chap": 1, "exit_chap": "存活至最後", "personality": "極度理智、數據導向",
-            "status": "健康，手機電量鎖定 1%", "sanity": "90% (高度冷靜理性)", "speech_style": "簡短、條理分明",
-            "dialogue_example": "「機率是 17%，這不是賭博，是物理限制。」"
+            "summary": "冷靜理智的理工男，善於利用物理知識與環境細節推算規則邊界。",
+            "personality": "極度理智、數據導向、冷靜", "status": "健康但體力消耗大，手機電量損耗中",
+            "sanity": "85%", "speech_style": "極度節省字數（以節省電量）", "dialogue_example": "「時間鎖死在06:52，但我們體力在消耗。省著點用手機。」"
         },
         {
-            "id": "c2", "name": "林欣", "relation": "生死求生夥伴",
-            "summary": "細心的女性求生者，提供物資調配與心理支柱。",
-            "entry_chap": 2, "exit_chap": "預估第 25 章", "personality": "細心、共情能力強",
-            "status": "極度疲憊", "sanity": "55% (精神緊繃，有幻聽傾向)", "speech_style": "輕聲細語、著重情感",
-            "dialogue_example": "「蘇默……你確定這次那條鐵律不會改變嗎？」"
+            "id": "c2", "name": "水手服女生 (林欣)", "relation": "求生夥伴",
+            "summary": "車廂角落的水手服女生，在無聲恐怖中保持壓抑與理智。",
+            "personality": "驚恐但極力克制、細心", "status": "精神極度緊繃，無聲流淚，電量所剩不多",
+            "sanity": "50%", "speech_style": "不敢發聲，僅能透過眼神與肢體交流", "dialogue_example": "（緊咬雙唇，含著眼淚對蘇默點頭）"
+        },
+        {
+            "id": "c3", "name": "西裝男", "relation": "共犯夥伴",
+            "summary": "因規則陷入半身麻痺異變的上班族，與蘇默一同用體重對抗異變柱。",
+            "personality": "中年上班族，殘存求生本能", "status": "左半身完全麻痺化為木頭/菌絲狀態",
+            "sanity": "60%", "speech_style": "無法發聲，透過右手在手機上艱難打字", "dialogue_example": "「死不了，但左邊身體全麻了。手機快沒電了。」"
         }
     ],
 
     "chapters_list": [
-        {"num": 5, "title": "第 5 章：1% 的訊號", "summary": "蘇默發現手機電量鎖定在 1%，並接收到神秘微波。"},
+        {"num": 1, "title": "第 1 章：06:52 的列車", "summary": "蘇默在列車上醒來，發現所有人的手機時間均鎖死在 06:52。"},
+        {"num": 5, "title": "第 5 章：訊號與叩擊", "summary": "蘇默手機接收到未知微波脈衝，前方餐車鐵門傳來扣擊聲。"},
         {"num": 6, "title": "第 6 章：鐵門後的叩擊", "summary": "蘇默與林欣戒備靠近前方車廂鐵門，觀察未知動靜。"}
     ],
 
+    # 當前微觀寫作參數
     "current_vol_title": "第一集：失聲火車",
     "current_chap": 6,
     "total_chaps": 30,
     "target_chapter_words": 3300,
-    "time_and_environment": "故事時間：陷入異變後第 8 小時 | 環境：車廂溫度 12°C",
-    "sensory_details": """• 視覺：車廂頂燈死寂微弱，手機 1% 電量螢幕發出淡淡藍光，鐵門縫隙透出未知綠芒。
-• 聽覺：死寂中只有兩人極度壓抑的呼吸聲，金屬因低溫冷縮發出微弱牙酸吱嘎聲。
-• 嗅覺/體感：空氣中瀰漫濃重刺鼻的金屬冰冷鏽蝕味，空氣皮膚表面起雞皮疙瘩。""",
-
-    "pacing_style": "中速推演 (規則解謎/搜查/對話試探 - 長短句交替)",
+    "time_and_environment": "現實錨點：06:52 (鎖死) | 車廂內實際流逝時間：第 2 小時 | 氣溫 12°C",
+    "sensory_details": "• 視覺：昏暗死寂冷白光，西裝男左半身黑綠色菌絲，手機螢幕下降的電量％數。\n• 聽覺：絕對死寂，僅有呼吸聲與低溫下金屬收縮的牙酸微響。\n• 體感/嗅覺：冷汗浸濕衣物，空氣中濃重金屬鏽蝕與腐敗血腥味。",
+    "pacing_setting": "中速推演 (解謎/搜查/對話 - 長短句交替)",
     "pov_setting": "第一人稱 (蘇默視角)",
     "tone_setting": "極度壓抑、懸疑冷酷、理性推算",
-    "previous_summary": "上一章結尾：蘇默盯著手機 1% 電量，發現未知的微波訊號，前方鐵門傳來扣擊聲...",
-    "must_include": "• 手機 1% 電量接收到的神祕微波數據\n• 車廂鐵門上的刺鼻金屬鏽蝕味",
+    "previous_summary": "上一章（第 5 章）結尾：蘇默與西裝男用體重與公事包卡住異變柱。所有人手機時間停在 06:52，但流逝的體力與持續下降的電量提醒著蘇默時間仍在走。此時，蘇默手機收到條微波脈衝訊號，前方餐車門傳來規律叩擊聲...",
     "chapter_outline": "第六章：蘇默與林欣戒備地靠近鐵門，透過門縫觀察前方車廂，同時蘇默嘗試解析手機接收到的神秘訊號。",
-    "scene_conflict": "蘇默希望主動開門探查訊號來源 vs 林欣害怕觸發未知規則試圖阻止",
-    "scene_turn": "以為門外是其他生還者扣門，透過門縫觀察後發現竟是受規則支配的機械式異變導體",
-    "reveal_and_mystery": "• 本章揭露：1% 電量接收到的訊號為定頻規律脈衝。\n• 本章留懸念：異變導體胸口赫然別著下一站工作人員的識別證。",
-    "writing_taboos": "• 禁止出現感性說教台詞\n• 禁止主角無故驚慌失措\n• 對話需簡短、注重環境物理描寫",
+    "scene_conflict": "蘇默希望能靠近鐵門解析訊號 vs 林欣因為極度恐懼與擔心電量耗盡試圖阻止",
+    "scene_turn": "以為門外是其他生還乘客，透過門縫觀察後發現竟是身上別著下一站工作人員識別證的異變導體",
+    "reveal_and_mystery": "• 本章揭露：06:52 是發生事故的時間錨點，列車內時間持續向前。\n• 本章懸念：門外異變體握著 14 車標記車票，且西裝男手機電量即將見底。",
+    "must_include": "• 手機時間顯示 06:52 與隨使用持續下降的電量條\n• 車廂鐵門上的刺鼻金屬鏽蝕味與規律叩擊聲",
+    "writing_taboos": "• 禁止任何角色開口發聲說話（必須用手機打字或眼神交流）\n• 必須注意打字消耗電量的資源限制\n• 禁止主角無故驚慌失措",
     "generated_content": ""
 }
 
+# Session State 初始化
 if "character_list" not in st.session_state: st.session_state["character_list"] = default_data["character_list"]
 if "volumes_list" not in st.session_state: st.session_state["volumes_list"] = default_data["volumes_list"]
 if "chapters_list" not in st.session_state: st.session_state["chapters_list"] = default_data["chapters_list"]
 if "items_inventory" not in st.session_state: st.session_state["items_inventory"] = default_data["items_inventory"]
 
-# ================= 頂部：檔案匯入/匯出控制區 =================
+# ================= 頂部：存檔匯入與下載 =================
+st.subheader("💾 紀錄與存檔管理")
+col_file1, col_file2 = st.columns(2)
+
 with col_file1:
-    uploaded_file = st.file_uploader("📤 匯入歷史設定檔 (.json)", type=["json", "txt"])
+    uploaded_file = st.file_uploader("📤 匯入歷史設定檔 (.json / .txt)", type=["json", "txt"])
     if uploaded_file is not None:
         try:
             loaded_data = json.load(uploaded_file)
             default_data.update(loaded_data)
             
-            # 安全防護：補齊角色卡缺少的 id 與欄位
+            # 安全防護：自動補齊 id 欄位避免 KeyError
             if "character_list" in loaded_data:
                 for idx, c in enumerate(loaded_data["character_list"]):
-                    if "id" not in c:
-                        c["id"] = f"c_{idx}_{int(datetime.now().timestamp())}"
+                    if "id" not in c: c["id"] = f"c_{idx}_{int(datetime.now().timestamp())}"
                 st.session_state["character_list"] = loaded_data["character_list"]
                 
-            if "volumes_list" in loaded_data:
-                st.session_state["volumes_list"] = loaded_data["volumes_list"]
-            if "chapters_list" in loaded_data:
-                st.session_state["chapters_list"] = loaded_data["chapters_list"]
-            if "items_inventory" in loaded_data:
-                st.session_state["items_inventory"] = loaded_data["items_inventory"]
+            if "volumes_list" in loaded_data: st.session_state["volumes_list"] = loaded_data["volumes_list"]
+            if "chapters_list" in loaded_data: st.session_state["chapters_list"] = loaded_data["chapters_list"]
+            if "items_inventory" in loaded_data: st.session_state["items_inventory"] = loaded_data["items_inventory"]
                 
             st.success("✅ 成功載入全書歷史紀錄！")
         except Exception as e:
             st.error(f"檔案格式錯誤：{str(e)}")
 
-
-# ================= 側邊欄：全書宇宙觀、道具庫與角色卡 =================
+# ================= 側邊欄：全書設定 (自動背景備用) =================
 with st.sidebar:
-    st.header("🌌 1. 全書頂層宇宙觀")
+    st.header("🌌 1. 全書世界觀與角色庫")
     book_title = st.text_input("全書書名", value=default_data["book_title"])
-    book_theme = st.text_input("全書題材/風格", value=default_data["book_theme"])
-    book_overall_secret = st.text_area("🔒 全書終局真相 (AI 參考)", value=default_data["book_overall_secret"], height=70)
+    book_theme = st.text_input("題材風格", value=default_data["book_theme"])
+    book_overall_secret = st.text_area("🔒 全書終局真相", value=default_data["book_overall_secret"], height=70)
     
     st.divider()
     
     # 關鍵道具庫區
     col_it_title, col_it_add = st.columns([3, 1])
-    with col_it_title: st.subheader("🎒 關鍵道具與物料庫")
+    with col_it_title: st.subheader("🎒 道具與物料庫")
     with col_it_add:
         if st.button("➕ 道具"):
             st.session_state["items_inventory"].append({"name": "新道具", "status": "狀態/耐久", "owner": "持有者"})
@@ -133,8 +134,8 @@ with st.sidebar:
         with st.expander(f"📦 {item['name']} ({item['owner']})", expanded=False):
             item['name'] = st.text_input("道具名稱", value=item['name'], key=f"it_name_{it_idx}")
             item['owner'] = st.text_input("持有者", value=item['owner'], key=f"it_owner_{it_idx}")
-            item['status'] = st.text_input("當前狀態/剩餘耐久/特性", value=item['status'], key=f"it_stat_{it_idx}")
-            if st.button("🗑️ 刪除道具", key=f"it_del_{it_idx}"):
+            item['status'] = st.text_input("當前狀態/特性", value=item['status'], key=f"it_stat_{it_idx}")
+            if st.button("🗑️ 刪除", key=f"it_del_{it_idx}"):
                 st.session_state["items_inventory"].pop(it_idx)
                 st.rerun()
         items_text += f"• {item['name']} (持有:{item['owner']}): {item['status']}\n"
@@ -147,41 +148,18 @@ with st.sidebar:
 
     st.divider()
     
-    # 多集規劃
-    col_v_title, col_v_add = st.columns([3, 1])
-    with col_v_title: st.subheader("📚 各集規劃庫")
-    with col_v_add:
-        if st.button("➕ 集"):
-            new_v_id = f"v_{int(datetime.now().timestamp())}"
-            st.session_state["volumes_list"].append({"id": new_v_id, "title": f"第 {len(st.session_state['volumes_list'])+1} 集", "target_words": 100000, "summary": "大綱..."})
-            st.rerun()
-
-    volumes_summary_text = ""
-    for v_idx, vol in enumerate(st.session_state["volumes_list"]):
-        with st.expander(f"📘 {vol['title']}", expanded=False):
-            vol['title'] = st.text_input("本集名稱", value=vol['title'], key=f"v_title_{vol['id']}")
-            vol['target_words'] = st.number_input("目標字數", value=vol['target_words'], step=10000, key=f"v_words_{vol['id']}")
-            vol['summary'] = st.text_area("主線大綱", value=vol['summary'], height=70, key=f"v_sum_{vol['id']}")
-            if st.button("🗑️ 刪除集", key=f"v_del_{vol['id']}"):
-                st.session_state["volumes_list"].pop(v_idx)
-                st.rerun()
-        volumes_summary_text += f"• {vol['title']}: {vol['summary']}\n"
-
-    st.divider()
-    
-    # 動態角色卡片清單 (含台詞範例)
+    # 動態角色卡片清單
     col_char_title, col_char_add = st.columns([3, 1])
     with col_char_title: st.subheader("👥 角色卡片庫")
     with col_char_add:
         if st.button("➕ 角色"):
             new_c_id = f"c_{int(datetime.now().timestamp())}"
-            st.session_state["character_list"].append({"id": new_c_id, "name": "新角色", "relation": "關係", "summary": "簡介...", "entry_chap": 1, "exit_chap": "未定", "personality": "性格", "status": "狀態", "sanity": "100%", "speech_style": "口吻", "dialogue_example": "代表台詞..."})
+            st.session_state["character_list"].append({"id": new_c_id, "name": "新角色", "relation": "關係", "summary": "簡介...", "personality": "性格", "status": "狀態", "sanity": "100%", "speech_style": "口吻", "dialogue_example": "台詞..."})
             st.rerun()
 
     updated_characters_text = ""
     for c_idx, char in enumerate(st.session_state["character_list"]):
         with st.expander(f"👤 {char['name']} ({char['relation']})", expanded=False):
-            st.caption(f"💡 {char['summary']}")
             char['name'] = st.text_input("名稱", value=char['name'], key=f"c_name_{char['id']}")
             char['relation'] = st.text_input("關係", value=char['relation'], key=f"c_rel_{char['id']}")
             char['summary'] = st.text_input("簡介", value=char['summary'], key=f"c_sum_{char['id']}")
@@ -189,20 +167,62 @@ with st.sidebar:
             char['status'] = st.text_input("🩸 生理狀態", value=char['status'], key=f"c_stat_{char['id']}")
             char['sanity'] = st.text_input("🧠 理智度 (SAN值)", value=char.get('sanity', '100%'), key=f"c_san_{char['id']}")
             char['speech_style'] = st.text_input("口吻風格", value=char['speech_style'], key=f"c_speech_{char['id']}")
-            char['dialogue_example'] = st.text_input("💬 台詞風格範例", value=char.get('dialogue_example', ''), key=f"c_diag_{char['id']}")
-            if st.button("🗑️ 刪除角", key=f"c_del_{char['id']}"):
+            char['dialogue_example'] = st.text_input("💬 代表台詞", value=char.get('dialogue_example', ''), key=f"c_diag_{char['id']}")
+            if st.button("🗑️ 刪除", key=f"c_del_{char['id']}"):
                 st.session_state["character_list"].pop(c_idx)
                 st.rerun()
-        updated_characters_text += f"【{char['name']} ({char['relation']})】\n• 簡介：{char['summary']}\n• 性格：{char['personality']}\n• 生理狀態：{char['status']} | SAN值：{char.get('sanity', '100%')}\n• 口吻風格：{char['speech_style']}\n• 典型台詞：{char.get('dialogue_example', '無')}\n---\n"
+        updated_characters_text += f"【{char['name']} ({char['relation']})】\n• 簡介：{char['summary']}\n• 性格：{char['personality']}\n• 生理狀態：{char['status']} | SAN值：{char.get('sanity', '100%')}\n• 口吻：{char['speech_style']}\n• 台詞範例：{char.get('dialogue_example', '無')}\n---\n"
 
-# ================= 主畫面：章節目錄庫與單章創作 =================
+    # 各集規劃 (收納在側邊欄最下層)
+    volumes_summary_text = ""
+    for v_idx, vol in enumerate(st.session_state["volumes_list"]):
+        volumes_summary_text += f"• {vol['title']}: {vol['summary']}\n"
+
+# ================= 主畫面：極簡寫作工作區 =================
 st.subheader(f"📖 2. 當前撰寫：{book_title}")
 
-with st.expander("📑 章節目錄大綱清單 (預寫與對照區)", expanded=False):
+# 1. 第一排核心開關：集數、章號、目標字數
+col_m1, col_m2, col_m3 = st.columns(3)
+with col_m1:
+    vol_options = [v['title'] for v in st.session_state['volumes_list']]
+    current_vol_title = st.selectbox("🎯 當前集數", vol_options if vol_options else ["第一集：失聲火車"])
+with col_m2: current_chap = st.number_input("目前章節", value=default_data["current_chap"], min_value=1)
+with col_m3: target_chapter_words = st.number_input("🎯 本章目標字數", value=default_data["target_chapter_words"], step=500)
+
+# 2. 第二排核心內容：銜接點與本章大綱 (寫作時最常用的欄位)
+previous_summary = st.text_area("📌 上一章結尾錨點 (銜接點)", value=default_data["previous_summary"], height=80)
+chapter_outline = st.text_area("🎯 本章具體大綱與情節推進 (主要寫作指令)", value=default_data["chapter_outline"], height=100)
+
+# 3. ⚙️ 進階選單 (預設自動折疊，有需要再點開調校即可！)
+with st.expander("⚙️ 點此展開【本章進階微調參數】(時間線、五感、衝突翻轉、寫作禁忌)", expanded=False):
+    col_env1, col_env2, col_env3 = st.columns(3)
+    with col_env1: time_and_environment = st.text_input("⏱️ 時間線與環境氣溫", value=default_data["time_and_environment"])
+    with col_env2:
+        pov_list = ["第一人稱 (蘇默視角)", "第三人稱限制視角", "第三人稱全知視角"]
+        pov_setting = st.selectbox("👁️ 寫作視角", pov_list, index=0)
+    with col_env3:
+        pacing_list = ["中速推演 (解謎/搜查/對話 - 長短句交替)", "高速推進 (動作/戰鬥/逃跑 - 短句為主)", "慢速壓抑 (鋪陳/恐懼/氛圍 - 細節拉長)"]
+        pacing_setting = st.selectbox("⚡ 寫作節奏與速度感", pacing_list, index=0)
+
+    tone_setting = st.text_input("🎭 本章情緒基調", value=default_data["tone_setting"])
+    sensory_details = st.text_area("🌫️ 五感描寫重點 (視覺/聽覺/嗅覺/體感)", value=default_data["sensory_details"], height=70)
+
+    col_adv1, col_adv2 = st.columns(2)
+    with col_adv1:
+        scene_conflict = st.text_area("⚔️ 本章核心衝突點", value=default_data["scene_conflict"], height=70)
+        must_include = st.text_area("🔑 必須出現的伏筆/道具", value=default_data["must_include"], height=70)
+    with col_adv2:
+        scene_turn = st.text_area("🔄 本章局勢/認知大翻轉 (Turn)", value=default_data["scene_turn"], height=70)
+        reveal_and_mystery = st.text_area("🔍 伏筆揭示與新未知懸念", value=default_data["reveal_and_mystery"], height=70)
+
+    writing_taboos = st.text_area("🚫 寫作禁忌 (Negative Prompt)", value=default_data["writing_taboos"], height=70)
+
+# 預先對照的章節目錄清單 (放進折疊)
+with st.expander("📑 章節目錄大綱庫 (預先規劃對照區)", expanded=False):
     col_ch_t, col_ch_a = st.columns([3, 1])
     with col_ch_t: st.write("預先規劃各章大綱：")
     with col_ch_a:
-        if st.button("➕ 新增章"):
+        if st.button("➕ 新增預寫章節"):
             next_num = len(st.session_state["chapters_list"]) + 1
             st.session_state["chapters_list"].append({"num": next_num, "title": f"第 {next_num} 章", "summary": "大綱..."})
             st.rerun()
@@ -214,42 +234,6 @@ with st.expander("📑 章節目錄大綱清單 (預寫與對照區)", expanded=
         with col_c3: ch['summary'] = st.text_input("簡要大綱", value=ch['summary'], key=f"ch_sum_{ch_idx}")
 
 st.divider()
-
-col_m1, col_m2, col_m3, col_m4 = st.columns(4)
-with col_m1:
-    vol_options = [v['title'] for v in st.session_state['volumes_list']]
-    current_vol_title = st.selectbox("🎯 當前集數", vol_options if vol_options else ["第一集：失聲火車"])
-with col_m2: current_chap = st.number_input("目前章節", value=default_data["current_chap"], min_value=1)
-with col_m3: total_chaps = st.number_input("預估總章數", value=default_data["total_chaps"], min_value=1)
-with col_m4: target_chapter_words = st.number_input("🎯 本章目標字數", value=default_data["target_chapter_words"], step=500)
-
-col_env1, col_env2, col_env3 = st.columns(3)
-with col_env1:
-    time_and_environment = st.text_input("⏱️ 當前故事時間線與環境狀態", value=default_data["time_and_environment"])
-with col_env2:
-    pov_list = ["第一人稱 (蘇默視角)", "第三人稱限制視角", "第三人稱全知視角"]
-    pov_setting = st.selectbox("👁️ 寫作視角", pov_list, index=0)
-with col_env3:
-    pacing_list = ["高速推進 (動作/戰鬥/逃跑 - 短句為主)", "中速推演 (解謎/搜查/對話 - 長短句交替)", "慢速壓抑 (鋪陳/恐懼/氛圍 - 細節拉長)"]
-    pacing_setting = st.selectbox("⚡ 本節奏與速度感", pacing_list, index=1)
-
-tone_setting = st.text_input("🎭 本章情緒基調", value=default_data["tone_setting"])
-sensory_details = st.text_area("🌫️ 本章環境氣氛與五感描寫重點 (視覺/聽覺/嗅覺/體感)", value=default_data["sensory_details"], height=80)
-
-st.divider()
-
-col_l, col_r = st.columns(2)
-with col_l:
-    previous_summary = st.text_area("📌 上一章結尾錨點 (銜接點)", value=default_data["previous_summary"], height=100)
-    scene_conflict = st.text_area("⚔️ 本章核心衝突點", value=default_data["scene_conflict"], height=90)
-    must_include = st.text_area("🔑 必須出現的伏筆/道具", value=default_data["must_include"], height=90)
-
-with col_r:
-    chapter_outline = st.text_area("🎯 本章具體大綱與情節推進", value=default_data["chapter_outline"], height=100)
-    scene_turn = st.text_area("🔄 本章局勢/認知大翻轉 (Turn)", value=default_data["scene_turn"], height=90)
-    reveal_and_mystery = st.text_area("🔍 本章伏筆揭示與新未知懸念", value=default_data["reveal_and_mystery"], height=90)
-
-writing_taboos = st.text_area("🚫 寫作禁忌 (Negative Prompt)", value=default_data["writing_taboos"], height=70)
 
 generate_btn = st.button("✨ 開始生成本章小說內文", type="primary", use_container_width=True)
 
@@ -298,7 +282,7 @@ if generate_btn:
         "volume_title": current_vol_title,
         "target_volume_words": 100000,
         "current_chapter": current_chap,
-        "total_chapters": total_chaps,
+        "total_chapters": default_data.get("total_chaps", 30),
         "previous_volumes_summary": volumes_summary_text,
         "story_background": combined_background,
         "character_profiles": updated_characters_text,
@@ -341,7 +325,6 @@ if st.session_state["generated_text"]:
         "chapters_list": st.session_state["chapters_list"],
         "current_vol_title": current_vol_title,
         "current_chap": current_chap,
-        "total_chaps": total_chaps,
         "target_chapter_words": target_chapter_words,
         "time_and_environment": time_and_environment,
         "pacing_setting": pacing_setting,
