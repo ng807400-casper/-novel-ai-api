@@ -3,94 +3,153 @@ import json
 import os
 import google.generativeai as genai
 from datetime import datetime
+import streamlit.components.v1 as components
 
 # 頁面基本設定
 st.set_page_config(page_title="專業小說家 AI 寫作工作站", page_icon="✍️", layout="wide")
 
+# 🔓 強制解鎖全頁面文字選取與複製 (全瀏覽器 / 手機相容)
+st.markdown("""
+    <style>
+    /* 強制所有元素皆可選取複製 */
+    * {
+        -webkit-user-select: text !important;
+        -moz-user-select: text !important;
+        -ms-user-select: text !important;
+        user-select: text !important;
+    }
+    /* 強化小說內文的字體大小與排版 */
+    .stMarkdown p {
+        font-size: 1.05rem !important;
+        line-height: 1.8 !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 st.title("✍️ 專業小說家 AI 全書寫作工作站")
 st.caption("平時極簡流暢、進階可隨心調校（直連 Gemini API 免後端）的懸疑/規則小說創作主控台")
 
-# ================= 預設資料初始化 (忠於前六章原著) =================
+# ================= 預設資料初始化 (套用最新 JSON 設定) =================
 default_data = {
-    "book_title": "《失號領域》",
-    "book_theme": "懸疑 / 克蘇魯 / 規則怪談 / 物理解謎",
-    "book_overall_secret": "列車與區域皆陷入異常，現實時間被定格在 06:52，但列車空間內的時間與生理代謝仍在流逝。",
-    
-    # 1. 已驗證鐵律
-    "confirmed_rules_list": [
-        {"id": "r1", "content": "絕不可發聲或製造空氣震動（違者觸發黑液與菌絲吞噬）。"},
-        {"id": "r2", "content": "車廂電子設備時間硬性鎖死在 06:52（預設 40 分鐘後的鬧鐘未響）。"},
-        {"id": "r3", "content": "異變柱向上蔓延時，若受物理結構（如公事包與體重）卡托可暫時止住升高。"}
-    ],
-
-    # 2. 未驗證假說
-    "hypotheses_list": [
-        {"id": "h1", "content": "只要不打破絕不可發聲的鐵律，區域內暫時是安全的。"},
-        {"id": "h2", "content": "門後的扣擊聲與手機接收到的微波脈衝訊號具有特定頻率聯繫。"}
-    ],
-
-    # 3. 關鍵線索庫
-    "clues_list": [
-        {"id": "cl1", "content": "手機右上角鎖死的 06:52 時間（時間錨點）。"},
-        {"id": "cl2", "content": "天花板不到一公分處被古經理公事包卡住的異變柱。"},
-        {"id": "cl3", "content": "蘇默手機收到的微波脈衝數據與文字輸入訊號。"}
-    ],
-
-    # 4. 道具庫
-    "items_inventory": [
-        {"name": "蘇默的手機", "status": "時間鎖死在 06:52，電量正常消耗，可進行無聲打字與微波接收", "owner": "蘇默"},
-        {"name": "古經理的公事包與外套", "status": "用來墊在異變柱與木地板之間卡住頂升物理結構", "owner": "古經理(西裝男)"},
-        {"name": "白色耳機", "status": "蘇默隨身攜帶，已接入手機感應微波脈衝", "owner": "蘇默"}
-    ],
-
-    "volumes_list": [
-        {"id": "v1", "title": "第一集：失聲火車", "target_words": 100000, "summary": "主角蘇默在時間鎖死在 06:52 的列車中醒來，利用物理知識推演規則邊界，與左半身麻痺的古經理在絕對死寂中求生。"}
-    ],
-    
-    # 5. 角色卡
-    "character_list": [
-        {
-            "id": "c1", "name": "蘇默", "relation": "主角本人",
-            "summary": "理智冷靜的理工男，善於利用物理知識與環境細節推算規則邊界。",
-            "personality": "理智、數據導向、冷靜、觀察力強", "status": "健康但體力消耗極大，手心出冷汗，手機電量正常消耗中",
-            "sanity": "85%", "speech_style": "極度節省字數（以節省手機剩餘電量）", "dialogue_example": "「06:52，時間沒動。省著用手機。」"
-        },
-        {
-            "id": "c2", "name": "古經理 (西裝男)", "relation": "求生共犯",
-            "summary": "中年上班族，陷入半身麻痺異變，與蘇默一同用體重卡住異變柱。",
-            "personality": "殘存求生本能，忍痛能力強，具備執行力", "status": "左半身完全麻痺化為木頭與黑綠菌絲，右手可單手打字",
-            "sanity": "60%", "speech_style": "無法發聲，透過右手在手機上記錄打字", "dialogue_example": "「死不了，但左邊身體全麻了，像一塊木頭。」"
-        }
-    ],
-
-    "chapters_list": [
-        {"num": 1, "title": "第 1 章：06:52 的列車", "summary": "蘇默在列車上醒來，發現手錶在走但手機與螢幕時間停留在 06:52。"},
-        {"num": 2, "title": "第 2 章：無聲鐵律", "summary": "夾克男咆哮引發規則暴走，乘客瞬間融化為黑水與菌絲，車廂陷入絕對死寂。"},
-        {"num": 3, "title": "第 3 章：蔓延的黑水", "summary": "黑液與菌絲在車廂地板蔓延，所有生還者被壓迫在極小空間內不敢發出聲音。"},
-        {"num": 4, "title": "第 4 章：半身麻痺與物理抗衡", "summary": "古經理左半身陷入木化異變，蘇默與其合力利用公事包與體重卡住頂升的異變柱。"},
-        {"num": 5, "title": "第 5 章：1% 的微波訊號", "summary": "兩人透過手機無聲打字交流，蘇默手機接收到未知的微波脈衝訊號。"},
-        {"num": 6, "title": "第 6 章：突破第 10 節大門", "summary": "蘇默帶頭突破大門進入冰冷的無人餐車廂，前方門後傳來未知動靜與規律扣擊聲。"},
-        {"num": 7, "title": "第 7 章：餐車廂的深處", "summary": "蘇默與古經理在餐車廂內深入探索，嘗試解析微波脈衝並應對大門外的未知威脅。"}
-    ],
-
-    # 當前寫作參數
-    "current_vol_title": "第一集：失聲火車",
-    "current_chap": 7,
-    "target_chapter_words": 3300,
-    "time_and_environment": "現實錨點：06:52 (時間鎖死) | 車廂實際時間：陷入異變約第 1 小時 | 車廂氣溫 12°C",
-    "sensory_details": "• 視覺：冷白日光燈閃爍，古經理左半身黑綠菌絲與死皮，前方無人餐車廂的冷冽金屬感。\n• 聽覺：絕對死寂，僅有壓抑的呼吸聲與低溫金屬收縮的牙酸微響。\n• 體感/嗅覺：手心冷汗浸濕牛仔褲，空氣中濃重的金屬鏽蝕與刺鼻黑液味。",
-    "pacing_setting": "中速推演 (解謎/搜查/對話 - 長短句交替)",
-    "pov_type": "第一人稱",
-    "pov_character": "蘇默",
-    "tone_setting": "極度壓抑、懸疑冷酷、理性推算",
-    "previous_summary": "第六章結尾：蘇默帶頭突破了第 10 節大門進入餐車廂，現場空無一人，宛如死寂的登山小屋。但空氣更加冰冷，前方通往更深處的大門正在傳來輕微而規律的叩擊聲...",
-    "chapter_outline": "第七章：蘇默與古經理在餐車廂內小心搜查，嘗試利用手機剩餘電量解析接收到的微波脈衝數據，同時應對前方大門傳來的威脅。",
-    "scene_conflict": "蘇默希望能靠近大門解析微波訊號與門外動靜 vs 車廂內極度死寂帶來的心理壓迫與電量消耗壓力",
-    "scene_turn": "以為門外是其他生還乘客求救，透過門縫觀察後發現竟是受規則支配的異變導體",
-    "reveal_and_mystery": "• 本章揭露：06:52 是發生事故那一刻的時間錨點，而列車內的實際時間正在持續向前流逝。\n• 本章懸念：門外異變導體手中的異常物品。",
-    "must_include": "• 手機時間顯示 06:52 與隨打字持續下降的電量\n• 餐車廂內刺鼻的金屬鏽蝕味與規律叩擊聲",
-    "writing_taboos": "• 禁止任何角色開口發聲說話（必須使用手機打字或肢體交流）\n• 注意手機打字耗電的資源限制\n• 禁止出現前六章未登場的角色",
-    "generated_content": ""
+  "book_title": "《失號領域》",
+  "book_theme": "懸疑 / 克蘇魯 / 規則怪談 / 物理解謎",
+  "book_overall_secret": "希靈帝國在阻止虛空大災變的過程中，意外聯絡上虛空背面的神族（即蘇默這側虛空範圍內統稱為克系神靈），得知虛空大災變真相為虛空雙向歸零的機制，因虛空正反面資訊互不相容、互相無法解譯，當虛空一側的資訊溢出到另一側時，就會引發虛空大災變。而主角蘇默因第一集列車遭遇交通事故後被星域神族的成員選中進入列車事件中，進行培養虛空雙向資訊互譯的能力中脫穎而出",
+  "confirmed_rules_list": [
+    {
+      "id": "r1",
+      "content": "絕不可發聲或製造空氣震動（違者觸發黑液與菌絲吞噬）。"
+    }
+  ],
+  "hypotheses_list": [
+    {
+      "id": "h1",
+      "content": "只要不打破絕不可發聲的鐵律，區域內暫時是安全的。"
+    }
+  ],
+  "clues_list": [
+    {
+      "id": "cl1",
+      "content": "在蘇默醒來後不久，收到了一封語氣非常驚慌（哇啊啊啊啊）的簡訊，說明車上有東西一直發出聲音，再這樣下去列車會壞掉的"
+    }
+  ],
+  "items_inventory": [
+    {
+      "name": "蘇默的手機",
+      "status": "時間鎖死在 06:52，初次登場時電量98%，電量正常消耗中",
+      "owner": "蘇默"
+    },
+    {
+      "name": "古經理的公事包與外套",
+      "status": "用來墊在異變柱與木地板之間卡住頂升物理結構",
+      "owner": "古經理(西裝男)"
+    }
+  ],
+  "volumes_list": [
+    {
+      "id": "v1",
+      "title": "第一集：失聲火車",
+      "target_words": 100000,
+      "summary": "主角蘇默在時間鎖死在 06:52 的列車中醒來，利用物理知識推演規則邊界，與左半身麻痺的古經理在絕對死寂中求生。"
+    }
+  ],
+  "character_list": [
+    {
+      "id": "c1",
+      "name": "蘇默",
+      "relation": "主角本人",
+      "summary": "理智冷靜的理工男，善於利用物理知識與環境細節推算規則邊界。",
+      "personality": "理智、數據導向、冷靜、觀察力強",
+      "status": "健康但體力消耗極大，手心出冷汗，手機電量正常消耗中",
+      "sanity": "85%",
+      "speech_style": "極度節省字數（以節省手機剩餘電量）",
+      "dialogue_example": "「06:52，時間沒動。省著用手機。」"
+    },
+    {
+      "id": "c2",
+      "name": "西裝男",
+      "relation": "在11節車廂中偶遇",
+      "summary": "中年上班族，陷入半身麻痺異變，與蘇默一同用體重卡住異變柱。",
+      "personality": "殘存求生本能，忍痛能力強，具備執行力",
+      "status": "左半身完全麻痺化為木頭與黑綠菌絲，右手可單手打字",
+      "sanity": "60%",
+      "speech_style": "無法發聲，透過右手在手機上記錄打字",
+      "dialogue_example": "「死不了，但左邊身體全麻了，像一塊木頭。」"
+    }
+  ],
+  "chapters_list": [
+    {
+      "num": 1,
+      "title": "第 1 章：06:52 的列車",
+      "summary": "蘇默在列車上醒來，發現手錶在走但手機與螢幕時間停留在 06:52。"
+    },
+    {
+      "num": 2,
+      "title": "第 2 章：無聲鐵律",
+      "summary": "夾克男咆哮引發規則暴走，乘客瞬間融化為黑水與菌絲，車廂陷入絕對死寂。"
+    },
+    {
+      "num": 3,
+      "title": "第 3 章：蔓延的黑水",
+      "summary": "黑液與菌絲在車廂地板蔓延，所有生還者被壓迫在極小空間內不敢發出聲音。"
+    },
+    {
+      "num": 4,
+      "title": "第 4 章：半身麻痺與物理抗衡",
+      "summary": "古經理左半身陷入木化異變，蘇默與其合力利用公事包與體重卡住頂升的異變柱。"
+    },
+    {
+      "num": 5,
+      "title": "第 5 章：1% 的微波訊號",
+      "summary": "兩人透過手機無聲打字交流，蘇默手機接收到未知的微波脈衝訊號。"
+    },
+    {
+      "num": 6,
+      "title": "第 6 章：預兆",
+      "summary": "車窗外遙遠處可以看到一座不認識的現代城市被黑絲化成的詭異觸手感染並緩慢吞噬的景象 列車不知道行駛在什麼地方，看起來像是在半空或是虛空，也不知道有沒有軌道，列車行駛本身沒發出任何聲音 蘇默一邊舒緩緊張的情緒，一邊坐著恢復體力，周遭環境暫時安全，西裝男沒體力行動了正躺在登場處休息 蘇默沒有找到窺視感的源頭，打算往第10節車廂看看，打開車廂間隔門後發現是餐車廂，隱約聽到一陣持續傳來的叩擊聲…"
+    },
+    {
+      "num": 7,
+      "title": "第 7 章：餐車廂的深處",
+      "summary": "蘇默單獨在餐車廂內深入探索，嘗試阻止變異體持續發出聲音"
+    }
+  ],
+  "current_vol_title": "第一集：失聲火車",
+  "current_chap": 6,
+  "target_chapter_words": 3300,
+  "time_and_environment": "現實錨點：06:52 (時間鎖死) | 車廂實際時間：陷入異變約第 1 小時 | 車廂氣溫 24°C",
+  "pacing_setting": "慢速壓抑 (鋪陳/恐懼/氛圍 - 細節拉長)",
+  "sensory_details": "• 視覺：冷白日光燈閃爍，西裝男左半身黑綠菌絲與死皮，20世紀貴族風格木製列車廂。\n• 聽覺：絕對死寂，僅有壓抑的呼吸聲。\n• 體感/嗅覺：手心冷汗浸濕牛仔褲",
+  "pov_type": "第一人稱",
+  "pov_character": "蘇默",
+  "tone_setting": "極度壓抑、懸疑冷酷、慌亂中努力的維持理性推理",
+  "previous_summary": "第五章結尾：將背上的雙肩包抱在胸前，赤腳踩在冰冷、乾燥的軟木地板上。在這個暫時安全、卻被窗外「崩塌世界」重重包圍的古怪座位裡，蘇默一動不動地坐著，一邊回復著近乎透支的體力，一邊用那雙屬於理工男的冷靜眼睛，繼續注視著窗外，試圖找出那股窺視感的源頭",
+  "scene_conflict": "蘇默在11節車廂救下西裝男後，暫時停留在11節車廂休息，稍微舒緩的氣氛 vs 10節車廂內突然傳來的叩擊聲帶來的異變可能爆發的死亡心理壓迫與壓力",
+  "scene_turn": "以為餐車廂是其他生還乘客發出聲音，探索觀察後發現竟是受規則支配的異變體",
+  "reveal_and_mystery": "• 本章揭露：無\n• 本章懸念：異變體持續叩擊聲引發餐車廂部分區域異變，而蘇默要如何闖過這節車廂並阻止異變體繼續發出聲音",
+  "must_include": "• 餐車廂內的規律叩擊聲",
+  "chapter_outline": "車窗外遙遠處可以看到一座不認識的現代城市被黑絲化成的詭異觸手感染並緩慢吞噬的景象\n列車不知道行駛在什麼地方，看起來像是在半空或是虛空，也不知道有沒有軌道，列車行駛本身沒發出任何聲音\n蘇默一邊舒緩緊張的情緒，一邊坐著恢復體力，周遭環境暫時安全，西裝男沒體力行動了正躺在登場處休息\n蘇默沒有找到窺視感的源頭，打算往第10節車廂看看，打開車廂間隔門後發現是餐車廂，隱約聽到一陣持續傳來的叩擊聲…",
+  "writing_taboos": "• 禁止任何角色開口發聲說話（必須使用手機打字或肢體交流）\n• 寫作禁止直接稱呼克系\n• 禁止使用一般人不常聽見的專業名詞與用語",
+  "generated_content": ""
 }
 
 # Session State 動態清單初始化
@@ -153,7 +212,7 @@ with st.sidebar:
     st.header("🌌 1. 全書世界觀與角色庫")
     book_title = st.text_input("全書書名", value=default_data["book_title"])
     book_theme = st.text_input("題材風格", value=default_data["book_theme"])
-    book_overall_secret = st.text_area("🔒 全書終局真相", value=default_data["book_overall_secret"], height=70)
+    book_overall_secret = st.text_area("🔒 全書終局真相", value=default_data["book_overall_secret"], height=100)
     
     st.divider()
     
@@ -294,7 +353,7 @@ with st.expander("⚙️ 點此展開【本章進階微調參數】(視角切換
         
     with col_env3:
         pacing_list = ["中速推演 (解謎/搜查/對話 - 長短句交替)", "高速推進 (動作/戰鬥/逃跑 - 短句為主)", "慢速壓抑 (鋪陳/恐懼/氛圍 - 細節拉長)"]
-        pacing_setting = st.selectbox("⚡ 寫作節奏與速度感", pacing_list, index=0)
+        pacing_setting = st.selectbox("⚡ 寫作節奏與速度感", pacing_list, index=2)
 
     col_sub1, col_sub2 = st.columns(2)
     with col_sub1: time_and_environment = st.text_input("⏱️ 時間線與環境狀態", value=default_data["time_and_environment"])
@@ -434,7 +493,6 @@ if generate_btn:
             available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
             
             selected_model_name = None
-            # 依序比對你帳號真實支援的模型名稱（以 gemini-flash-latest 為第一優先，配額充裕且穩定）
             for preferred in [
                 "models/gemini-flash-latest",
                 "models/gemini-2.0-flash",
@@ -445,7 +503,6 @@ if generate_btn:
                     selected_model_name = preferred
                     break
             
-            # 備援機制：若清單外的狀況，選擇第一個能用的模型
             if not selected_model_name and available_models:
                 selected_model_name = available_models[0]
                 
@@ -460,7 +517,6 @@ if generate_btn:
                 output_box = st.empty()
                 full_text = ""
                 
-                # 使用流式輸出 (Stream) 實現打字機效果
                 response = model.generate_content(prompt, stream=True)
                 for chunk in response:
                     if chunk.text:
@@ -473,8 +529,40 @@ if generate_btn:
         except Exception as e:
             st.error(f"Gemini API 呼叫失敗：{str(e)}")
 
-# 展示目前的成果紀錄
-if st.session_state["generated_text"] and not generate_btn:
+# 展示目前的成果紀錄與便利複製功能
+if st.session_state["generated_text"]:
     st.markdown("---")
-    st.subheader("📝 本章生成成果（目前紀錄）：")
+    st.subheader("📝 本章生成成果：")
+    
+    # ⚡ 一鍵複製 JavaScript 按鈕機制
+    escaped_text = json.dumps(st.session_state["generated_text"])
+    copy_button_html = f"""
+        <button id="copyBtn" style="
+            background-color: #FF4B4B;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            margin-bottom: 10px;
+        ">📋 一鍵複製全章內文至剪貼簿</button>
+        <script>
+            document.getElementById('copyBtn').addEventListener('click', function() {{
+                var text = {escaped_text};
+                navigator.clipboard.writeText(text).then(function() {{
+                    alert('✅ 已成功將小說全章複製到剪貼簿！');
+                }}, function(err) {{
+                    alert('❌ 複製失敗，請使用下方的文字框手動複製。');
+                }});
+            }});
+        </script>
+    """
+    components.html(copy_button_html, height=60)
+    
+    # 手動複製文字框與可劃線 Markdown 區域
+    st.text_area("📋 複製專用純文字框 (長按亦可全選)", value=st.session_state["generated_text"], height=300)
+    st.markdown("---")
     st.write(st.session_state["generated_text"])
