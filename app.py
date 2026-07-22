@@ -417,7 +417,8 @@ if generate_btn:
         try:
             genai.configure(api_key=active_api_key)
             # 使用最新、速度快且免費額度高的官方模型
-            model = genai.GenerativeModel('gemini-2.5-flash')
+            model = genai.GenerativeModel('gemini-1.5-flash')
+
             
             output_box = st.empty()
             full_text = ""
