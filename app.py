@@ -85,22 +85,31 @@ if "chapters_list" not in st.session_state: st.session_state["chapters_list"] = 
 if "items_inventory" not in st.session_state: st.session_state["items_inventory"] = default_data["items_inventory"]
 
 # ================= 頂部：檔案匯入/匯出控制區 =================
-st.subheader("💾 紀錄與存檔管理")
-col_file1, col_file2 = st.columns(2)
-
 with col_file1:
     uploaded_file = st.file_uploader("📤 匯入歷史設定檔 (.json)", type=["json", "txt"])
     if uploaded_file is not None:
         try:
             loaded_data = json.load(uploaded_file)
             default_data.update(loaded_data)
-            if "character_list" in loaded_data: st.session_state["character_list"] = loaded_data["character_list"]
-            if "volumes_list" in loaded_data: st.session_state["volumes_list"] = loaded_data["volumes_list"]
-            if "chapters_list" in loaded_data: st.session_state["chapters_list"] = loaded_data["chapters_list"]
-            if "items_inventory" in loaded_data: st.session_state["items_inventory"] = loaded_data["items_inventory"]
+            
+            # 安全防護：補齊角色卡缺少的 id 與欄位
+            if "character_list" in loaded_data:
+                for idx, c in enumerate(loaded_data["character_list"]):
+                    if "id" not in c:
+                        c["id"] = f"c_{idx}_{int(datetime.now().timestamp())}"
+                st.session_state["character_list"] = loaded_data["character_list"]
+                
+            if "volumes_list" in loaded_data:
+                st.session_state["volumes_list"] = loaded_data["volumes_list"]
+            if "chapters_list" in loaded_data:
+                st.session_state["chapters_list"] = loaded_data["chapters_list"]
+            if "items_inventory" in loaded_data:
+                st.session_state["items_inventory"] = loaded_data["items_inventory"]
+                
             st.success("✅ 成功載入全書歷史紀錄！")
         except Exception as e:
             st.error(f"檔案格式錯誤：{str(e)}")
+
 
 # ================= 側邊欄：全書宇宙觀、道具庫與角色卡 =================
 with st.sidebar:
