@@ -1,17 +1,16 @@
 import streamlit as st
-import requests
 import json
+import os
+import google.generativeai as genai
 from datetime import datetime
 
 # 頁面基本設定
 st.set_page_config(page_title="專業小說家 AI 寫作工作站", page_icon="✍️", layout="wide")
 
 st.title("✍️ 專業小說家 AI 全書寫作工作站")
-st.caption("平時極簡流暢、進階可隨心調校（含動態線索牆與視角切換）的懸疑/規則小說創作主控台")
+st.caption("平時極簡流暢、進階可隨心調校（直連 Gemini API 免後端）的懸疑/規則小說創作主控台")
 
-API_URL = "https://novel-ai-api-himy.onrender.com/v1/chapter/stream/"
-
-# ================= 預設資料初始化 =================
+# ================= 預設資料初始化 (忠於前六章原著) =================
 default_data = {
     "book_title": "《失號領域》",
     "book_theme": "懸疑 / 克蘇魯 / 規則怪談 / 物理解謎",
@@ -104,7 +103,7 @@ if "hypotheses_list" not in st.session_state: st.session_state["hypotheses_list"
 if "clues_list" not in st.session_state: st.session_state["clues_list"] = default_data["clues_list"]
 if "generated_text" not in st.session_state: st.session_state["generated_text"] = default_data.get("generated_content", "")
 
-# ================= 頂部：存檔匯入與下載（恆定顯示） =================
+# ================= 頂部：存檔匯入與下載 =================
 st.subheader("💾 紀錄與存檔管理")
 
 uploaded_file = st.file_uploader("📤 匯入歷史設定檔 (.json / .txt)", type=["json", "txt"])
@@ -132,6 +131,12 @@ if uploaded_file is not None:
 
 # ================= 側邊欄：全書設定 (卡片化動態區) =================
 with st.sidebar:
+    st.header("🔑 Gemini API 金鑰設定")
+    env_api_key = os.environ.get("GEMINI_API_KEY", "")
+    api_key_input = st.text_input("輸入 Gemini API Key (可空著使用系統變數)", value=env_api_key, type="password")
+    active_api_key = api_key_input if api_key_input else env_api_key
+
+    st.divider()
     st.header("🌌 1. 全書世界觀與角色庫")
     book_title = st.text_input("全書書名", value=default_data["book_title"])
     book_theme = st.text_input("題材風格", value=default_data["book_theme"])
@@ -310,7 +315,7 @@ with st.expander("📑 章節目錄大綱庫 (預先規劃對照區)", expanded=
         with col_c2: ch['title'] = st.text_input("標題", value=ch['title'], key=f"ch_title_{ch_idx}")
         with col_c3: ch['summary'] = st.text_input("簡要大綱", value=ch['summary'], key=f"ch_sum_{ch_idx}")
 
-# 動態打包當前最即時的設定資料
+# 動態打包 JSON 下載
 current_export_data = {
     "book_title": book_title,
     "book_theme": book_theme,
@@ -345,7 +350,6 @@ current_export_data = {
 json_string = json.dumps(current_export_data, ensure_ascii=False, indent=2)
 filename = f"{book_title}_{current_vol_title}_第{current_chap}章_{datetime.now().strftime('%Y%m%d_%H%M')}.json"
 
-# 恆定放置在匯入功能正下方的下載按鈕
 st.download_button(
     label="📥 下載當前全書設定檔 (.json)",
     data=json_string,
@@ -358,78 +362,81 @@ st.divider()
 
 generate_btn = st.button("✨ 開始生成本章小說內文", type="primary", use_container_width=True)
 
-# ================= 生成與成果展示 =================
+# ================= 直連 Gemini API 生成邏輯 =================
 if generate_btn:
-    st.markdown("---")
-    st.subheader("📝 本章生成成果：")
-    
-    pov_final_instruction = f"{pov_type} (以角色【{pov_character}】作為第一人稱『我』來進行全身心描寫與心理思考)"
-    
-    combined_chapter_outline = f"""
-    【本章大綱】：{chapter_outline}
-    【目標字數】：約 {target_chapter_words} 字
-    【描寫視角與核心主角】：{pov_final_instruction}
-    【故事時間線與環境】：{time_and_environment}
-    【寫作節奏與句式】：{pacing_setting}
-    【情緒基調】：{tone_setting}
-    【環境五感描寫重點】：
-    {sensory_details}
-    【核心衝突】：{scene_conflict}
-    【局勢/認知翻轉】：{scene_turn}
-    【伏筆揭示與新懸念】：
-    {reveal_and_mystery}
-    【必須包含的伏筆/道具】：
-    {must_include}
-    【寫作禁忌】：
-    {writing_taboos}
-    """
-    
-    combined_background = f"""
-    【全書名稱】：{book_title} ({book_theme})
-    【全書終局真相】：{book_overall_secret}
-    【已知鐵律】：
-    {rules_text}
-    【當前未驗證假說】：
-    {hypo_text}
-    【手邊線索庫】：
-    {clues_text}
-    【當前可用道具庫】：
-    {items_text}
-    【各集結構總覽】：
-    {volumes_summary_text}
-    """
-    
-    payload = {
-        "volume_title": current_vol_title,
-        "target_volume_words": 100000,
-        "current_chapter": current_chap,
-        "total_chapters": default_data.get("total_chaps", 30),
-        "previous_volumes_summary": volumes_summary_text,
-        "story_background": combined_background,
-        "character_profiles": updated_characters_text,
-        "chapter_outline": combined_chapter_outline,
-        "previous_summary": previous_summary
-    }
-    
-    try:
-        response = requests.post(API_URL, json=payload, stream=True)
-        if response.status_code == 200:
+    if not active_api_key:
+        st.error("❌ 找不到 Gemini API Key！請在側邊欄填入 Key，或在 Render 設定 GEMINI_API_KEY 環境變數。")
+    else:
+        st.markdown("---")
+        st.subheader("📝 本章生成成果：")
+        
+        pov_final_instruction = f"{pov_type} (以角色【{pov_character}】作為第一人稱『我』來進行全身心描寫與心理思考)"
+        
+        prompt = f"""
+你是一位頂級的懸疑 / 克蘇魯 / 規則怪談小說作家。請根據以下完整的全書世界觀、角色狀態與本章微調指令，為我撰寫小說最新一章的內文。
+
+【全書世界觀與背景】
+• 書名：{book_title} ({book_theme})
+• 全書終局真相：{book_overall_secret}
+• 已驗證鐵律：
+{rules_text}
+• 當前未驗證假說：
+{hypo_text}
+• 手邊線索庫：
+{clues_text}
+• 當前可用道具庫：
+{items_text}
+
+【登場角色陣容】
+{updated_characters_text}
+
+【上一章結尾銜接點】
+{previous_summary}
+
+【本章撰寫精準指令】
+• 當前章節：{current_vol_title} 第 {current_chap} 章
+• 本章大綱：{chapter_outline}
+• 目標字數：約 {target_chapter_words} 字
+• 描寫視角：{pov_final_instruction}
+• 故事時間線與環境：{time_and_environment}
+• 寫作節奏：{pacing_setting}
+• 情緒基調：{tone_setting}
+• 五感描寫重點：\n{sensory_details}
+• 核心衝突：{scene_conflict}
+• 局勢/認知大翻轉：{scene_turn}
+• 伏筆揭示與新懸念：\n{reveal_and_mystery}
+• 必須包含元素：\n{must_include}
+• 寫作禁忌 (Negative Prompt)：\n{writing_taboos}
+
+【寫作要求】
+1. 直接輸出小說內文，不要帶有任何開場白或結語。
+2. 保持極度壓抑、冷酷、嚴密符合物理解謎與規則怪談的氣氛。
+3. 嚴格遵循「寫作禁忌」，特別是絕對不允許角色違規開口發聲。
+"""
+
+        try:
+            genai.configure(api_key=active_api_key)
+            # 使用官方推薦模型
+            model = genai.GenerativeModel('gemini-1.5-pro-latest')
+            
             output_box = st.empty()
             full_text = ""
-            for chunk in response.iter_content(chunk_size=1024, decode_unicode=True):
-                if chunk:
-                    full_text += chunk
-                    output_box.write(full_text)
+            
+            # 使用流式輸出 (Stream) 實現打字機效果
+            response = model.generate_content(prompt, stream=True)
+            for chunk in response:
+                if chunk.text:
+                    full_text += chunk.text
+                    output_box.markdown(full_text)
+                    
             st.session_state["generated_text"] = full_text
-            st.rerun() # 自動重新整理刷新下載檔的內容
-        else:
-            st.error(f"生成失敗，伺服器回應狀態碼：{response.status_code}")
-    except Exception as e:
-        st.error(f"連線發生錯誤：{str(e)}")
+            st.success("🎉 本章生成完成！已更新備份資料。")
+            
+        except Exception as e:
+            st.error(f"Gemini API 呼叫失敗：{str(e)}")
 
-# 展示成果
-if st.session_state["generated_text"]:
-    if not generate_btn:
-        st.markdown("---")
-        st.subheader("📝 本章生成成果（目前紀錄）：")
-        st.write(st.session_state["generated_text"])
+# 展示目前的成果紀錄
+if st.session_state["generated_text"] and not generate_btn:
+    st.markdown("---")
+    st.subheader("📝 本章生成成果（目前紀錄）：")
+    st.write(st.session_state["generated_text"])
