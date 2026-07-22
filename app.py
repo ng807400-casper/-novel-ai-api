@@ -6,8 +6,8 @@ from datetime import datetime
 # 頁面基本設定
 st.set_page_config(page_title="專業小說家 AI 全書寫作工作站", page_icon="✍️", layout="wide")
 
-st.title("✍️ 專業小說家 AI 全書寫作工作站 (完全體)")
-st.caption("整合三層架構、動態角色卡、時間線/SAN值、道具庫/五感描寫與 JSON 全備份的終極介面")
+st.title("✍️ 專業小說家 AI 全書寫作工作站 (終極完全體)")
+st.caption("具備三層架構、角色台詞範例、節奏密度控制、伏筆揭示控管與 JSON 全備份的寫作介面")
 
 API_URL = "https://novel-ai-api-himy.onrender.com/v1/chapter/stream"
 
@@ -22,7 +22,7 @@ default_data = {
     "unverified_hypotheses": "1. 手機電量 1% 可能是感應外部微波的接收器。\n2. 鐵門扣擊聲可能不是人類發出的。",
     "clues_inventory": "• 13 車車票的特定折角痕跡\n• 手機 1% 電量閃爍的固定波長數據",
 
-    # 道具與物料庫 (新增)
+    # 道具與物料庫
     "items_inventory": [
         {"name": "蘇默的手機", "status": "螢幕破裂，電量常駐 1% (不可充不可降)，頻率感應中", "owner": "蘇默"},
         {"name": "13 車車票", "status": "右下角有特定折角痕跡，表面帶有微弱金屬光澤", "owner": "全員"},
@@ -34,18 +34,21 @@ default_data = {
         {"id": "v2", "title": "第二集：深淵迴響", "target_words": 120000, "summary": "進入第二異變區域，常駐 1% 電量的手機開始接收到外部微波訊息。"}
     ],
     
+    # 角色卡 (新增台詞範例)
     "character_list": [
         {
             "id": "c1", "name": "蘇默", "relation": "主角本人",
             "summary": "冷靜理工男，善於利用物理知識推算規則邊界。",
             "entry_chap": 1, "exit_chap": "存活至最後", "personality": "極度理智、數據導向",
-            "status": "健康，手機電量鎖定 1%", "sanity": "90% (高度冷靜理性)", "speech_style": "簡短、條理分明"
+            "status": "健康，手機電量鎖定 1%", "sanity": "90% (高度冷靜理性)", "speech_style": "簡短、條理分明",
+            "dialogue_example": "「機率是 17%，這不是賭博，是物理限制。」"
         },
         {
             "id": "c2", "name": "林欣", "relation": "生死求生夥伴",
             "summary": "細心的女性求生者，提供物資調配與心理支柱。",
             "entry_chap": 2, "exit_chap": "預估第 25 章", "personality": "細心、共情能力強",
-            "status": "極度疲憊", "sanity": "55% (精神緊繃，有幻聽傾向)", "speech_style": "輕聲細語、著重情感"
+            "status": "極度疲憊", "sanity": "55% (精神緊繃，有幻聽傾向)", "speech_style": "輕聲細語、著重情感",
+            "dialogue_example": "「蘇默……你確定這次那條鐵律不會改變嗎？」"
         }
     ],
 
@@ -59,12 +62,11 @@ default_data = {
     "total_chaps": 30,
     "target_chapter_words": 3300,
     "time_and_environment": "故事時間：陷入異變後第 8 小時 | 環境：車廂溫度 12°C",
-    
-    # 五感與環境渲染細節 (新增)
     "sensory_details": """• 視覺：車廂頂燈死寂微弱，手機 1% 電量螢幕發出淡淡藍光，鐵門縫隙透出未知綠芒。
 • 聽覺：死寂中只有兩人極度壓抑的呼吸聲，金屬因低溫冷縮發出微弱牙酸吱嘎聲。
 • 嗅覺/體感：空氣中瀰漫濃重刺鼻的金屬冰冷鏽蝕味，空氣皮膚表面起雞皮疙瘩。""",
 
+    "pacing_style": "中速推演 (規則解謎/搜查/對話試探 - 長短句交替)",
     "pov_setting": "第一人稱 (蘇默視角)",
     "tone_setting": "極度壓抑、懸疑冷酷、理性推算",
     "previous_summary": "上一章結尾：蘇默盯著手機 1% 電量，發現未知的微波訊號，前方鐵門傳來扣擊聲...",
@@ -72,18 +74,15 @@ default_data = {
     "chapter_outline": "第六章：蘇默與林欣戒備地靠近鐵門，透過門縫觀察前方車廂，同時蘇默嘗試解析手機接收到的神秘訊號。",
     "scene_conflict": "蘇默希望主動開門探查訊號來源 vs 林欣害怕觸發未知規則試圖阻止",
     "scene_turn": "以為門外是其他生還者扣門，透過門縫觀察後發現竟是受規則支配的機械式異變導體",
+    "reveal_and_mystery": "• 本章揭露：1% 電量接收到的訊號為定頻規律脈衝。\n• 本章留懸念：異變導體胸口赫然別著下一站工作人員的識別證。",
     "writing_taboos": "• 禁止出現感性說教台詞\n• 禁止主角無故驚慌失措\n• 對話需簡短、注重環境物理描寫",
     "generated_content": ""
 }
 
-if "character_list" not in st.session_state:
-    st.session_state["character_list"] = default_data["character_list"]
-if "volumes_list" not in st.session_state:
-    st.session_state["volumes_list"] = default_data["volumes_list"]
-if "chapters_list" not in st.session_state:
-    st.session_state["chapters_list"] = default_data["chapters_list"]
-if "items_inventory" not in st.session_state:
-    st.session_state["items_inventory"] = default_data["items_inventory"]
+if "character_list" not in st.session_state: st.session_state["character_list"] = default_data["character_list"]
+if "volumes_list" not in st.session_state: st.session_state["volumes_list"] = default_data["volumes_list"]
+if "chapters_list" not in st.session_state: st.session_state["chapters_list"] = default_data["chapters_list"]
+if "items_inventory" not in st.session_state: st.session_state["items_inventory"] = default_data["items_inventory"]
 
 # ================= 頂部：檔案匯入/匯出控制區 =================
 st.subheader("💾 紀錄與存檔管理")
@@ -112,7 +111,7 @@ with st.sidebar:
     
     st.divider()
     
-    # 關鍵道具庫區 (新增)
+    # 關鍵道具庫區
     col_it_title, col_it_add = st.columns([3, 1])
     with col_it_title: st.subheader("🎒 關鍵道具與物料庫")
     with col_it_add:
@@ -161,13 +160,13 @@ with st.sidebar:
 
     st.divider()
     
-    # 動態角色卡片清單
+    # 動態角色卡片清單 (含台詞範例)
     col_char_title, col_char_add = st.columns([3, 1])
     with col_char_title: st.subheader("👥 角色卡片庫")
     with col_char_add:
         if st.button("➕ 角色"):
             new_c_id = f"c_{int(datetime.now().timestamp())}"
-            st.session_state["character_list"].append({"id": new_c_id, "name": "新角色", "relation": "關係", "summary": "簡介...", "entry_chap": 1, "exit_chap": "未定", "personality": "性格", "status": "狀態", "sanity": "100%", "speech_style": "口吻"})
+            st.session_state["character_list"].append({"id": new_c_id, "name": "新角色", "relation": "關係", "summary": "簡介...", "entry_chap": 1, "exit_chap": "未定", "personality": "性格", "status": "狀態", "sanity": "100%", "speech_style": "口吻", "dialogue_example": "代表台詞..."})
             st.rerun()
 
     updated_characters_text = ""
@@ -181,10 +180,11 @@ with st.sidebar:
             char['status'] = st.text_input("🩸 生理狀態", value=char['status'], key=f"c_stat_{char['id']}")
             char['sanity'] = st.text_input("🧠 理智度 (SAN值)", value=char.get('sanity', '100%'), key=f"c_san_{char['id']}")
             char['speech_style'] = st.text_input("口吻風格", value=char['speech_style'], key=f"c_speech_{char['id']}")
+            char['dialogue_example'] = st.text_input("💬 台詞風格範例", value=char.get('dialogue_example', ''), key=f"c_diag_{char['id']}")
             if st.button("🗑️ 刪除角", key=f"c_del_{char['id']}"):
                 st.session_state["character_list"].pop(c_idx)
                 st.rerun()
-        updated_characters_text += f"【{char['name']} ({char['relation']})】\n• 簡介：{char['summary']}\n• 性格：{char['personality']}\n• 生理狀態：{char['status']} | SAN值：{char.get('sanity', '100%')}\n• 口吻：{char['speech_style']}\n---\n"
+        updated_characters_text += f"【{char['name']} ({char['relation']})】\n• 簡介：{char['summary']}\n• 性格：{char['personality']}\n• 生理狀態：{char['status']} | SAN值：{char.get('sanity', '100%')}\n• 口吻風格：{char['speech_style']}\n• 典型台詞：{char.get('dialogue_example', '無')}\n---\n"
 
 # ================= 主畫面：章節目錄庫與單章創作 =================
 st.subheader(f"📖 2. 當前撰寫：{book_title}")
@@ -214,17 +214,18 @@ with col_m2: current_chap = st.number_input("目前章節", value=default_data["
 with col_m3: total_chaps = st.number_input("預估總章數", value=default_data["total_chaps"], min_value=1)
 with col_m4: target_chapter_words = st.number_input("🎯 本章目標字數", value=default_data["target_chapter_words"], step=500)
 
-col_env1, col_env2 = st.columns(2)
+col_env1, col_env2, col_env3 = st.columns(3)
 with col_env1:
-    time_and_environment = st.text_input("⏱️ 當前故事時間線與環境氣溫/狀態", value=default_data["time_and_environment"])
+    time_and_environment = st.text_input("⏱️ 當前故事時間線與環境狀態", value=default_data["time_and_environment"])
 with col_env2:
-    col_s1, col_s2 = st.columns(2)
-    with col_s1:
-        pov_list = ["第一人稱 (蘇默視角)", "第三人稱限制視角", "第三人稱全知視角"]
-        pov_setting = st.selectbox("👁️ 寫作視角", pov_list, index=0)
-    with col_s2: tone_setting = st.text_input("🎭 本章情緒基調", value=default_data["tone_setting"])
+    pov_list = ["第一人稱 (蘇默視角)", "第三人稱限制視角", "第三人稱全知視角"]
+    pov_setting = st.selectbox("👁️ 寫作視角", pov_list, index=0)
+with col_env3:
+    pacing_list = ["高速推進 (動作/戰鬥/逃跑 - 短句為主)", "中速推演 (解謎/搜查/對話 - 長短句交替)", "慢速壓抑 (鋪陳/恐懼/氛圍 - 細節拉長)"]
+    pacing_setting = st.selectbox("⚡ 本節奏與速度感", pacing_list, index=1)
 
-sensory_details = st.text_area("🌫️ 本章環境氣氛與五感描寫重點 (視覺/聽覺/嗅覺/體感)", value=default_data["sensory_details"], height=90)
+tone_setting = st.text_input("🎭 本章情緒基調", value=default_data["tone_setting"])
+sensory_details = st.text_area("🌫️ 本章環境氣氛與五感描寫重點 (視覺/聽覺/嗅覺/體感)", value=default_data["sensory_details"], height=80)
 
 st.divider()
 
@@ -237,7 +238,9 @@ with col_l:
 with col_r:
     chapter_outline = st.text_area("🎯 本章具體大綱與情節推進", value=default_data["chapter_outline"], height=100)
     scene_turn = st.text_area("🔄 本章局勢/認知大翻轉 (Turn)", value=default_data["scene_turn"], height=90)
-    writing_taboos = st.text_area("🚫 寫作禁忌 (Negative Prompt)", value=default_data["writing_taboos"], height=90)
+    reveal_and_mystery = st.text_area("🔍 本章伏筆揭示與新未知懸念", value=default_data["reveal_and_mystery"], height=90)
+
+writing_taboos = st.text_area("🚫 寫作禁忌 (Negative Prompt)", value=default_data["writing_taboos"], height=70)
 
 generate_btn = st.button("✨ 開始生成本章小說內文", type="primary", use_container_width=True)
 
@@ -253,11 +256,14 @@ if generate_btn:
     【本章大綱】：{chapter_outline}
     【目標字數】：約 {target_chapter_words} 字
     【故事時間線與環境】：{time_and_environment}
+    【寫作節奏與句式】：{pacing_setting}
+    【寫作視角】：{pov_setting} | 【情緒基調】：{tone_setting}
     【環境五感描寫重點】：
     {sensory_details}
-    【寫作視角】：{pov_setting} | 【情緒基調】：{tone_setting}
     【核心衝突】：{scene_conflict}
     【局勢/認知翻轉】：{scene_turn}
+    【伏筆揭示與新懸念】：
+    {reveal_and_mystery}
     【必須包含的伏筆/道具】：
     {must_include}
     【寫作禁忌】：
@@ -329,12 +335,14 @@ if st.session_state["generated_text"]:
         "total_chaps": total_chaps,
         "target_chapter_words": target_chapter_words,
         "time_and_environment": time_and_environment,
+        "pacing_setting": pacing_setting,
         "sensory_details": sensory_details,
         "pov_setting": pov_setting,
         "tone_setting": tone_setting,
         "previous_summary": previous_summary,
         "scene_conflict": scene_conflict,
         "scene_turn": scene_turn,
+        "reveal_and_mystery": reveal_and_mystery,
         "must_include": must_include,
         "chapter_outline": chapter_outline,
         "writing_taboos": writing_taboos,
