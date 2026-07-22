@@ -4,26 +4,64 @@ import json
 from datetime import datetime
 
 # 頁面基本設定
-st.set_page_config(page_title="專業小說家 AI 寫作工作站", page_icon="✍️", layout="wide")
+st.set_page_config(page_title="專業小說家 AI 全書寫作工作站", page_icon="✍️", layout="wide")
 
-st.title("✍️ 專業小說家 AI 寫作工作站")
-st.caption("具備長篇結構控管、動態角色卡片管理、伏筆錨點與 JSON 存檔功能的寫作介面")
+st.title("✍️ 專業小說家 AI 全書寫作工作站")
+st.caption("具備全書架構、多集大綱、章節目錄卡片與深度角色管理的終極寫作介面")
 
 # 設定 Render API 網址
 API_URL = "https://novel-ai-api-himy.onrender.com/v1/chapter/stream"
 
-# ================= 預設資料與角色清單初始化 =================
+# ================= 預設資料初始化 =================
 default_data = {
-    "volume_title": "第一集：失聲火車",
-    "target_volume_words": 100000,
+    # 1. 全書頂層設定
+    "book_title": "《失號領域》 (暫定全書名)",
+    "book_theme": "懸疑 / 克蘇魯 / 物理規則解謎",
+    "book_overall_secret": "列車與所有區域皆為規則實驗場，13 車車票是唯一的管理員密鑰。",
+    
+    # 2. 多集規劃 (預設清單)
+    "volumes_list": [
+        {
+            "id": "v1",
+            "title": "第一集：失聲火車",
+            "target_words": 100000,
+            "summary": "主角蘇默在陷入時間停滯與無聲鐵律的列車中醒來，利用物理知識推演規則邊界，爭取生路。"
+        },
+        {
+            "id": "v2",
+            "title": "第二集：深淵迴響",
+            "target_words": 120000,
+            "summary": "離開火車後進入第二異變區域，常駐 1% 電量的手機開始接收到外部微波訊息。"
+        }
+    ],
+    
+    # 3. 預設角色清單
+    "character_list": [
+        {
+            "id": "c1", "name": "蘇默", "relation": "主角本人",
+            "summary": "冷靜理工男，善於利用物理知識與環境細節推算規則邊界。",
+            "entry_chap": 1, "exit_chap": "存活至最後", "personality": "極度理智、數據導向",
+            "status": "健康，手機電量永久鎖定在 1% (規則標記)", "speech_style": "簡短、條理分明"
+        },
+        {
+            "id": "c2", "name": "林欣", "relation": "生死求生夥伴",
+            "summary": "細心的女性求生者，提供物資調配與心理支柱。",
+            "entry_chap": 2, "exit_chap": "預估第 25 章", "personality": "細心、共情能力強",
+            "status": "極度疲憊，輕微精神衰弱", "speech_style": "輕聲細語、著重情感"
+        }
+    ],
+
+    # 4. 預設章節目錄大綱庫
+    "chapters_list": [
+        {"num": 5, "title": "第 5 章：1% 的訊號", "summary": "蘇默發現手機電量鎖定在 1%，並接收到神秘微波。"},
+        {"num": 6, "title": "第 6 章：鐵門後的叩擊", "summary": "蘇默與林欣戒備靠近前方車廂鐵門，觀察未知動靜。"},
+        {"num": 7, "title": "第 7 章：規則衍生", "summary": "進入新車廂，發現無聲鐵律出現第二層衍生限制。"}
+    ],
+
+    # 5. 當前單章細節欄位
+    "current_vol_title": "第一集：失聲火車",
     "current_chap": 6,
     "total_chaps": 30,
-    "volume_overall_outline": """【失聲火車主線】
-主角蘇默在陷入時間停滯與無聲鐵律的列車中醒來，必須利用理工物理知識推演規則邊界，與夥伴林欣合作，並透過 13 車車票與 1% 電量手機，在必死事故中尋找逆向解謎的唯一生路。""",
-    "previous_volumes_summary": """1. 蘇默與林欣確認了「無聲鐵律」存在，全車均持 13 車車票。
-2. 阿豪已發聲陣亡（已死）；西裝男半身麻痺昏迷。
-3. 蘇默的手機電量鎖定在 1%，為永久規則標記。""",
-    "story_bg": "列車陷入絕對死寂，時間停滯，手機電量是唯一的生命線。",
     "target_chapter_words": 3300,
     "pov_setting": "第一人稱 (蘇默視角)",
     "tone_setting": "極度壓抑、懸疑冷酷、理性推算",
@@ -34,57 +72,13 @@ default_data = {
     "generated_content": ""
 }
 
-# 預設角色結構化列表
-default_character_list = [
-    {
-        "id": "c1",
-        "name": "蘇默",
-        "relation": "主角本人",
-        "summary": "冷靜理工男，善於利用物理知識與環境細節推算規則邊界。",
-        "entry_chap": 1,
-        "exit_chap": "存活至最後",
-        "personality": "極度理智、數據導向、冷靜、理性大於感性",
-        "status": "健康，手機電量永久鎖定在 1% (規則標記)",
-        "speech_style": "簡短、條理分明、習慣用數據與物理現象分析局勢"
-    },
-    {
-        "id": "c2",
-        "name": "林欣",
-        "relation": "生死求生夥伴",
-        "summary": "細心的女性求生者，提供物資調配與心理支柱。",
-        "entry_chap": 2,
-        "exit_chap": "預估第 25 章",
-        "personality": "細心、共情能力強、直覺敏銳",
-        "status": "極度疲憊，輕微精神衰弱",
-        "speech_style": "輕聲細語、著重情感與直覺反應"
-    },
-    {
-        "id": "c3",
-        "name": "西裝男",
-        "relation": "暫時合作對象 / 不確定因素",
-        "summary": "因規則陷入半身麻痺的神秘乘客，能感應死寂頻率。",
-        "entry_chap": 1,
-        "exit_chap": "預估第 15 章",
-        "personality": "自私功利，但在死亡威脅下願意配合",
-        "status": "半身麻痺異變，可感應微波頻率，目前處於昏迷弱化狀態",
-        "speech_style": "沙啞、斷斷續續、帶有焦慮與戒心"
-    },
-    {
-        "id": "c4",
-        "name": "阿豪",
-        "relation": "前期車廂乘客 (已陣亡)",
-        "summary": "餐車廂極度驚恐的乘客，因違規發聲遭吞噬。",
-        "entry_chap": 1,
-        "exit_chap": "第 4 章 (已陣亡)",
-        "personality": "極度恐慌、情緒失控",
-        "status": "確定死亡 (不可出現在當前場景)",
-        "speech_style": "結巴、哀求、驚恐慘叫"
-    }
-]
-
 # Session State 初始化
 if "character_list" not in st.session_state:
-    st.session_state["character_list"] = default_character_list
+    st.session_state["character_list"] = default_data["character_list"]
+if "volumes_list" not in st.session_state:
+    st.session_state["volumes_list"] = default_data["volumes_list"]
+if "chapters_list" not in st.session_state:
+    st.session_state["chapters_list"] = default_data["chapters_list"]
 
 # ================= 頂部：檔案匯入/匯出控制區 =================
 st.subheader("💾 紀錄與存檔管理")
@@ -98,99 +92,121 @@ with col_file1:
             default_data.update(loaded_data)
             if "character_list" in loaded_data:
                 st.session_state["character_list"] = loaded_data["character_list"]
-            st.success("✅ 成功載入歷史紀錄與角色卡清單！")
+            if "volumes_list" in loaded_data:
+                st.session_state["volumes_list"] = loaded_data["volumes_list"]
+            if "chapters_list" in loaded_data:
+                st.session_state["chapters_list"] = loaded_data["chapters_list"]
+            st.success("✅ 成功載入全書歷史紀錄！")
         except Exception as e:
             st.error(f"檔案格式錯誤：{str(e)}")
 
-# ================= 側邊欄：宏觀架構與動態角色卡管理 =================
+# ================= 側邊欄：全書與分集巨觀架構 =================
 with st.sidebar:
-    st.header("📚 1. 宏觀架構 (本冊/全書設定)")
-    volume_title = st.text_input("本冊/本集名稱", value=default_data["volume_title"])
-    
-    col_v1, col_v2 = st.columns(2)
-    with col_v1:
-        target_volume_words = st.number_input("本集目標總字數", value=default_data["target_volume_words"], step=10000)
-        current_chap = st.number_input("目前撰寫章節", value=default_data["current_chap"], min_value=1)
-    with col_v2:
-        total_chaps = st.number_input("預估本集總章數", value=default_data["total_chaps"], min_value=1)
-        suggested_words = int(target_volume_words / total_chaps)
-        st.info(f"💡 建議單章字數：約 {suggested_words} 字")
-        
-    st.divider()
-    
-    volume_overall_outline = st.text_area("🗺️ 本集整體大綱與核心主線", value=default_data["volume_overall_outline"], height=120)
-    previous_volumes_summary = st.text_area("📜 既定歷史與前情總結 (AI 不可違背)", value=default_data["previous_volumes_summary"], height=120)
-    story_bg = st.text_area("🌌 世界觀與運作鐵律", value=default_data["story_bg"], height=80)
+    st.header("🌌 1. 全書頂層宇宙觀 (Book Level)")
+    book_title = st.text_input("全書書名", value=default_data["book_title"])
+    book_theme = st.text_input("全書核心題材/風格", value=default_data["book_theme"])
+    book_overall_secret = st.text_area("🔒 全書終局伏筆與真相 (僅供 AI 參考)", value=default_data["book_overall_secret"], height=80)
     
     st.divider()
     
-    # ---------------- 互動式角色卡清單區 ----------------
-    col_char_title, col_char_add = st.columns([3, 1])
-    with col_char_title:
-        st.subheader("👥 角色清單庫")
-    with col_char_add:
-        if st.button("➕ 新增", help="點擊新增一位角色"):
-            new_id = f"c_{int(datetime.now().timestamp())}"
-            st.session_state["character_list"].append({
-                "id": new_id,
-                "name": "新角色名稱",
-                "relation": "與主角關係",
-                "summary": "一句話簡介（方便快速識別）",
-                "entry_chap": current_chap,
-                "exit_chap": "未定",
-                "personality": "性格特質",
-                "status": "當前生理/異變狀態",
-                "speech_style": "對話/口吻風格"
+    # ---------------- 多集大綱卡片區 ----------------
+    col_v_title, col_v_add = st.columns([3, 1])
+    with col_v_title:
+        st.subheader("📚 各集規劃庫")
+    with col_v_add:
+        if st.button("➕ 新增集", help="新增一集"):
+            new_v_id = f"v_{int(datetime.now().timestamp())}"
+            st.session_state["volumes_list"].append({
+                "id": new_v_id, "title": f"第 {len(st.session_state['volumes_list'])+1} 集：新篇章",
+                "target_words": 100000, "summary": "本集主線概要..."
             })
             st.rerun()
 
-    # 渲染卡片式可折疊角色列表
-    updated_characters_text = ""
-    for idx, char in enumerate(st.session_state["character_list"]):
-        header_label = f"👤 {char['name']} ({char['relation']})"
-        with st.expander(header_label, expanded=False):
-            st.caption(f"💡 **簡介**：{char['summary']}")
-            
-            char['name'] = st.text_input("角色名稱", value=char['name'], key=f"name_{char['id']}")
-            char['relation'] = st.text_input("與主角關係", value=char['relation'], key=f"rel_{char['id']}")
-            char['summary'] = st.text_input("一句話簡介 (顯示於封面下欄)", value=char['summary'], key=f"sum_{char['id']}")
-            
-            c_col1, c_col2 = st.columns(2)
-            with c_col1:
-                char['entry_chap'] = st.text_input("登場章節", value=str(char['entry_chap']), key=f"entry_{char['id']}")
-            with c_col2:
-                char['exit_chap'] = st.text_input("預計退場/陣亡章節", value=str(char['exit_chap']), key=f"exit_{char['id']}")
-                
-            char['personality'] = st.text_area("性格特質", value=char['personality'], height=70, key=f"per_{char['id']}")
-            char['status'] = st.text_area("🩸 當前生理 / 異變狀態", value=char['status'], height=70, key=f"stat_{char['id']}")
-            char['speech_style'] = st.text_input("對話 / 口吻風格", value=char['speech_style'], key=f"speech_{char['id']}")
-            
-            if st.button("🗑️ 刪除此角色", key=f"del_{char['id']}"):
-                st.session_state["character_list"].pop(idx)
+    volumes_summary_text = ""
+    for v_idx, vol in enumerate(st.session_state["volumes_list"]):
+        with st.expander(f"📘 {vol['title']}", expanded=False):
+            vol['title'] = st.text_input("本集名稱", value=vol['title'], key=f"v_title_{vol['id']}")
+            vol['target_words'] = st.number_input("目標字數", value=vol['target_words'], step=10000, key=f"v_words_{vol['id']}")
+            vol['summary'] = st.text_area("本集主線大綱", value=vol['summary'], height=80, key=f"v_sum_{vol['id']}")
+            if st.button("🗑️ 刪除此集", key=f"v_del_{vol['id']}"):
+                st.session_state["volumes_list"].pop(v_idx)
                 st.rerun()
+        volumes_summary_text += f"• {vol['title']} ({vol['target_words']}字): {vol['summary']}\n"
 
-        # 自動組裝發送給 AI 的提示文字
-        updated_characters_text += f"""
-【角色：{char['name']}】
-• 關係：{char['relation']} | 簡介：{char['summary']}
-• 登場：第 {char['entry_chap']} 章 | 退場：{char['exit_chap']}
-• 性格：{char['personality']}
-• 當前生理/異變狀態：{char['status']}
-• 說話風格：{char['speech_style']}
----
-"""
+    st.divider()
+    
+    # ---------------- 角色清單區 ----------------
+    col_char_title, col_char_add = st.columns([3, 1])
+    with col_char_title:
+        st.subheader("👥 角色卡片庫")
+    with col_char_add:
+        if st.button("➕ 角色", help="新增角色"):
+            new_c_id = f"c_{int(datetime.now().timestamp())}"
+            st.session_state["character_list"].append({
+                "id": new_c_id, "name": "新角色", "relation": "關係", "summary": "簡介...",
+                "entry_chap": 1, "exit_chap": "未定", "personality": "性格", "status": "狀態", "speech_style": "口吻"
+            })
+            st.rerun()
 
-# ================= 主畫面：微觀單章寫作與控管 =================
-st.subheader(f"📖 2. 微觀寫作：{volume_title} — 第 {current_chap} 章 / 共 {total_chaps} 章")
+    updated_characters_text = ""
+    for c_idx, char in enumerate(st.session_state["character_list"]):
+        with st.expander(f"👤 {char['name']} ({char['relation']})", expanded=False):
+            st.caption(f"💡 {char['summary']}")
+            char['name'] = st.text_input("角色名稱", value=char['name'], key=f"c_name_{char['id']}")
+            char['relation'] = st.text_input("關係", value=char['relation'], key=f"c_rel_{char['id']}")
+            char['summary'] = st.text_input("簡介", value=char['summary'], key=f"c_sum_{char['id']}")
+            char['personality'] = st.text_input("性格", value=char['personality'], key=f"c_per_{char['id']}")
+            char['status'] = st.text_area("🩸 生理/異變狀態", value=char['status'], height=60, key=f"c_stat_{char['id']}")
+            char['speech_style'] = st.text_input("口吻風格", value=char['speech_style'], key=f"c_speech_{char['id']}")
+            if st.button("🗑️ 刪除角色", key=f"c_del_{char['id']}"):
+                st.session_state["character_list"].pop(c_idx)
+                st.rerun()
+        updated_characters_text += f"【{char['name']} ({char['relation']})】\n• 簡介：{char['summary']}\n• 性格：{char['personality']}\n• 狀態：{char['status']}\n• 口吻：{char['speech_style']}\n---\n"
 
-col_m1, col_m2, col_m3 = st.columns(3)
+# ================= 主畫面：章節目錄庫與單章創作 =================
+st.subheader(f"📖 2. 當前撰寫：{book_title}")
+
+# 章節目錄預覽與卡片管理區
+with st.expander("📑 章節目錄大綱清單 (點擊展開管理預寫大綱)", expanded=False):
+    col_ch_t, col_ch_a = st.columns([3, 1])
+    with col_ch_t:
+        st.write("可在這裡預先規劃各章節大綱，生成時可快速複製填入下方寫作區：")
+    with col_ch_a:
+        if st.button("➕ 新增章節大綱"):
+            next_num = len(st.session_state["chapters_list"]) + 1
+            st.session_state["chapters_list"].append({
+                "num": next_num, "title": f"第 {next_num} 章：新標題", "summary": "章節大綱內容..."
+            })
+            st.rerun()
+            
+    for ch_idx, ch in enumerate(st.session_state["chapters_list"]):
+        col_c1, col_c2, col_c3 = st.columns([1, 2, 4])
+        with col_c1:
+            ch['num'] = st.number_input("章號", value=ch['num'], key=f"ch_num_{ch_idx}")
+        with col_c2:
+            ch['title'] = st.text_input("標題", value=ch['title'], key=f"ch_title_{ch_idx}")
+        with col_c3:
+            ch['summary'] = st.text_input("簡要大綱", value=ch['summary'], key=f"ch_sum_{ch_idx}")
+
+st.divider()
+
+# 當前單章設定
+col_m1, col_m2, col_m3, col_m4 = st.columns(4)
 with col_m1:
-    target_chapter_words = st.number_input("🎯 本章目標字數", value=default_data.get("target_chapter_words", suggested_words), step=500)
+    vol_options = [v['title'] for v in st.session_state['volumes_list']]
+    current_vol_title = st.selectbox("🎯 選擇當前撰寫集數", vol_options if vol_options else ["第一集：失聲火車"])
 with col_m2:
-    pov_list = ["第一人稱 (蘇默視角)", "第三人稱限制視角", "第三人稱全知視角"]
-    pov_index = pov_list.index(default_data["pov_setting"]) if default_data["pov_setting"] in pov_list else 0
-    pov_setting = st.selectbox("👁️ 寫作視角", pov_list, index=pov_index)
+    current_chap = st.number_input("目前章節數", value=default_data["current_chap"], min_value=1)
 with col_m3:
+    total_chaps = st.number_input("預估本集總章數", value=default_data["total_chaps"], min_value=1)
+with col_m4:
+    target_chapter_words = st.number_input("🎯 本章目標字數", value=default_data["target_chapter_words"], step=500)
+
+col_s1, col_s2 = st.columns(2)
+with col_s1:
+    pov_list = ["第一人稱 (蘇默視角)", "第三人稱限制視角", "第三人稱全知視角"]
+    pov_setting = st.selectbox("👁️ 寫作視角", pov_list, index=0)
+with col_s2:
     tone_setting = st.text_input("🎭 本章情緒基調", value=default_data["tone_setting"])
 
 st.divider()
@@ -227,20 +243,20 @@ if generate_btn:
     """
     
     combined_background = f"""
-    【世界觀與鐵律】：
-    {story_bg}
-    【本集整體大綱】：
-    {volume_overall_outline}
+    【全書名稱與題材】：{book_title} ({book_theme})
+    【全書核心伏筆】：{book_overall_secret}
+    【各集結構總覽】：
+    {volumes_summary_text}
     """
     
     payload = {
-        "volume_title": volume_title,
-        "target_volume_words": target_volume_words,
+        "volume_title": current_vol_title,
+        "target_volume_words": 100000,
         "current_chapter": current_chap,
         "total_chapters": total_chaps,
-        "previous_volumes_summary": previous_volumes_summary,
+        "previous_volumes_summary": volumes_summary_text,
         "story_background": combined_background,
-        "character_profiles": updated_characters_text, # 傳入動態組裝的角色陣容
+        "character_profiles": updated_characters_text,
         "chapter_outline": combined_chapter_outline,
         "previous_summary": previous_summary
     }
@@ -268,14 +284,15 @@ if st.session_state["generated_text"]:
         st.write(st.session_state["generated_text"])
 
     current_export_data = {
-        "volume_title": volume_title,
-        "target_volume_words": target_volume_words,
+        "book_title": book_title,
+        "book_theme": book_theme,
+        "book_overall_secret": book_overall_secret,
+        "volumes_list": st.session_state["volumes_list"],
+        "character_list": st.session_state["character_list"],
+        "chapters_list": st.session_state["chapters_list"],
+        "current_vol_title": current_vol_title,
         "current_chap": current_chap,
-        "total_chapters": total_chaps,
-        "volume_overall_outline": volume_overall_outline,
-        "previous_volumes_summary": previous_volumes_summary,
-        "story_bg": story_bg,
-        "character_list": st.session_state["character_list"], # 存檔時保存完整角色卡結構
+        "total_chaps": total_chaps,
         "target_chapter_words": target_chapter_words,
         "pov_setting": pov_setting,
         "tone_setting": tone_setting,
@@ -288,11 +305,11 @@ if st.session_state["generated_text"]:
     }
 
     json_string = json.dumps(current_export_data, ensure_ascii=False, indent=2)
-    filename = f"{volume_title}_第{current_chap}章_{datetime.now().strftime('%Y%m%d_%H%M')}.json"
+    filename = f"{book_title}_{current_vol_title}_第{current_chap}章_{datetime.now().strftime('%Y%m%d_%H%M')}.json"
 
     with col_file2:
         st.download_button(
-            label="📥 下載當前設定與草稿 (.json)",
+            label="📥 下載全書設定與當前草稿 (.json)",
             data=json_string,
             file_name=filename,
             mime="application/json"
