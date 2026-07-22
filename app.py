@@ -89,7 +89,7 @@ st.subheader("💾 紀錄與存檔管理")
 col_file1, col_file2 = st.columns(2)
 
 with col_file1:
-    uploaded_file = st.file_uploader("📤 匯入歷史設定檔 (.json)", type=["json"])
+    uploaded_file = st.file_uploader("📤 匯入歷史設定檔 (.json)", type=["json", "txt"])
     if uploaded_file is not None:
         try:
             loaded_data = json.load(uploaded_file)
