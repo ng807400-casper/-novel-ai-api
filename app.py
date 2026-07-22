@@ -136,6 +136,19 @@ with st.sidebar:
     api_key_input = st.text_input("輸入 Gemini API Key (可空著使用系統變數)", value=env_api_key, type="password")
     active_api_key = api_key_input if api_key_input else env_api_key
 
+    # 🔍 查詢按鈕功能
+    if st.button("🔍 查詢目前 API Key 可用模型", use_container_width=True):
+        if not active_api_key:
+            st.error("請先輸入或設定 GEMINI_API_KEY！")
+        else:
+            try:
+                genai.configure(api_key=active_api_key)
+                models = [m.name.replace("models/", "") for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+                st.success("✅ 你的 API Key 當前可用模型清單：")
+                st.write(models)
+            except Exception as e:
+                st.error(f"查詢失敗：{str(e)}")
+
     st.divider()
     st.header("🌌 1. 全書世界觀與角色庫")
     book_title = st.text_input("全書書名", value=default_data["book_title"])
