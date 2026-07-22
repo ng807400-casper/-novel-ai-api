@@ -7,7 +7,7 @@ from datetime import datetime
 st.set_page_config(page_title="專業小說家 AI 寫作工作站", page_icon="✍️", layout="wide")
 
 st.title("✍️ 專業小說家 AI 寫作工作站")
-st.caption("具備長篇結構控管、單章字數預算、伏筆錨點與 JSON 存檔匯入功能的深度創作介面")
+st.caption("具備長篇結構控管、深度角色生命週期管理、伏筆錨點與 JSON 存檔功能的寫作介面")
 
 # 設定 Render API 網址
 API_URL = "https://novel-ai-api-himy.onrender.com/v1/chapter/stream"
@@ -24,7 +24,34 @@ default_data = {
 2. 阿豪已發聲陣亡（已死）；西裝男半身麻痺昏迷。
 3. 蘇默的手機電量鎖定在 1%，為永久規則標記。""",
     "story_bg": "列車陷入絕對死寂，時間停滯，手機電量是唯一的生命線。",
-    "character_cards": "蘇默（冷靜理工男，手機常駐 1%）、林欣（求生夥伴）",
+    
+    # 升級：結構化角色詳細設定
+    "detailed_characters": """【角色卡 1：蘇默 (主角)】
+• 與主角關係：主角本人
+• 登場章節：第 1 章 | 預計退場：存活至最後
+• 角色個性：極度冷靜、邏輯推算強、理智大於感性
+• 當前生理/異變狀態：健康，但手機電量永久鎖定在 1% (規則標記)
+• 說話風格：簡短、理性、習慣用數據與物理現象分析局勢
+
+【角色卡 2：林欣】
+• 與主角關係：生死求生夥伴 (互相信任)
+• 登場章節：第 2 章 | 預計退場：預估第 25 章大高潮
+• 角色個性：細心、共情能力強、負責物資與心理支柱
+• 當前生理/異變狀態：極度疲憊，輕微精神衰弱
+• 說話風格：輕聲細語、著重情感與直覺反應
+
+【角色卡 3：西裝男】
+• 與主角關係：暫時合作對象 / 不確定因素
+• 登場章節：第 1 章 | 預計退場：預估第 15 章 (規則侵蝕)
+• 角色個性：自私固執、功利主義，但在死亡威脅下願意配合
+• 當前生理/異變狀態：半身麻痺異變，可感應死寂微波頻率，處於昏迷弱化狀態
+• 說話風格：沙啞、斷斷續續、帶著焦慮與戒心
+
+【角色卡 4：阿豪 (已退場/陣亡)】
+• 與主角關係：前期車廂乘客
+• 登場章節：第 1 章 | 退場章節：第 4 章 (發聲違規遭吞噬陣亡)
+• 狀態：確定死亡 (不可出現在當前場景)""",
+
     "target_chapter_words": 3300,
     "pov_setting": "第一人稱 (蘇默視角)",
     "tone_setting": "極度壓抑、懸疑冷酷、理性推算",
@@ -49,7 +76,7 @@ with col_file1:
         except Exception as e:
             st.error(f"檔案格式錯誤：{str(e)}")
 
-# ================= 側邊欄：宏觀架構與世界觀設定 =================
+# ================= 側邊欄：宏觀架構與深度角色卡 =================
 with st.sidebar:
     st.header("📚 1. 宏觀架構 (本冊/全書設定)")
     volume_title = st.text_input("本冊/本集名稱", value=default_data["volume_title"])
@@ -65,10 +92,18 @@ with st.sidebar:
         
     st.divider()
     
-    volume_overall_outline = st.text_area("🗺️ 本集整體大綱與核心主線", value=default_data["volume_overall_outline"], height=130)
-    previous_volumes_summary = st.text_area("📜 既定歷史與前情總結 (AI 不可違背)", value=default_data["previous_volumes_summary"], height=130)
-    story_bg = st.text_area("🌌 世界觀與運作鐵律", value=default_data["story_bg"], height=90)
-    character_cards = st.text_area("👤 登場角色卡", value=default_data["character_cards"], height=90)
+    volume_overall_outline = st.text_area("🗺️ 本集整體大綱與核心主線", value=default_data["volume_overall_outline"], height=120)
+    previous_volumes_summary = st.text_area("📜 既定歷史與前情總結 (AI 不可違背)", value=default_data["previous_volumes_summary"], height=120)
+    story_bg = st.text_area("🌌 世界觀與運作鐵律", value=default_data["story_bg"], height=80)
+    
+    st.divider()
+    st.subheader("👥 深度角色卡與生命週期")
+    detailed_characters = st.text_area(
+        "角色動態與生死狀態 (登場/退場/關係/性格)",
+        value=default_data["detailed_characters"],
+        height=320,
+        help="包含了登場/退場時間、與主角關係、生理異變狀態與說話風格"
+    )
 
 # ================= 主畫面：微觀單章寫作與控管 =================
 st.subheader(f"📖 2. 微觀寫作：{volume_title} — 第 {current_chap} 章 / 共 {total_chaps} 章")
@@ -130,7 +165,7 @@ if generate_btn:
         "total_chapters": total_chaps,
         "previous_volumes_summary": previous_volumes_summary,
         "story_background": combined_background,
-        "character_profiles": character_cards,
+        "character_profiles": detailed_characters, # 帶入升級後的深度角色卡
         "chapter_outline": combined_chapter_outline,
         "previous_summary": previous_summary
     }
@@ -157,7 +192,6 @@ if st.session_state["generated_text"]:
         st.subheader("📝 本章生成成果（目前紀錄）：")
         st.write(st.session_state["generated_text"])
 
-    # 準備導出的 JSON 資料包
     current_export_data = {
         "volume_title": volume_title,
         "target_volume_words": target_volume_words,
@@ -166,7 +200,7 @@ if st.session_state["generated_text"]:
         "volume_overall_outline": volume_overall_outline,
         "previous_volumes_summary": previous_volumes_summary,
         "story_bg": story_bg,
-        "character_cards": character_cards,
+        "detailed_characters": detailed_characters,
         "target_chapter_words": target_chapter_words,
         "pov_setting": pov_setting,
         "tone_setting": tone_setting,
