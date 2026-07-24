@@ -44,12 +44,20 @@ default_data = {
     {
       "id": "h1",
       "content": "只要不打破絕不可發聲的鐵律，區域內暫時是安全的。"
+    },
+    {
+      "id": "h2",
+      "content": "異變體並非自主發聲生物，而是接收遠程微波訊號驅動的『接收終端』。"
     }
   ],
   "clues_list": [
     {
       "id": "cl1",
       "content": "在蘇默醒來後不久，收到了一封語氣非常驚慌（哇啊啊啊啊）的簡訊，說明車上有東西一直發出聲音，再這樣下去列車會壞掉的"
+    },
+    {
+      "id": "cl2",
+      "content": "觀察西裝男發現：收到變異影響之後，只要人體要害沒被波及到，就沒有致死性。"
     }
   ],
   "items_inventory": [
@@ -64,6 +72,12 @@ default_data = {
       "name": "西裝男的金屬萬年筆",
       "status": "筆尖極硬，由西裝男借給蘇默，可用於微觀力學卡位與物理阻斷",
       "owner": "西裝男 (借予蘇默)"
+    },
+    {
+      "id": "it3",
+      "name": "白色耳機",
+      "status": "隨身攜帶的 3.5mm 有線耳機",
+      "owner": "蘇默"
     }
   ],
   "volumes_list": [
@@ -80,7 +94,7 @@ default_data = {
       "name": "蘇默",
       "relation": "主角本人",
       "summary": "剛要上大學第一天的理工科新生，因習慣用數據與物理公式抽象化恐怖現象來維持理智，在極度恐懼中展現出過人的邏輯推算能力。",
-      "personality": "理智、數據導向、冷靜、觀察力強",
+      "personality": "理智、數據導向、表面冷靜實則極度驚恐、觀察力強",
       "status": "健康但體力消耗極大，手心出冷汗，手機電量消耗至93%",
       "sanity": "84%",
       "speech_style": "極度節省字數（以節省手機剩餘電量）",
@@ -108,6 +122,11 @@ default_data = {
       "num": 7,
       "title": "第 7 章：阻尼與黏滯力",
       "summary": "蘇默利用沙發墊衝量消能，卻因黏滯力導致異變體首級扭轉180度並發出咕嚕聲！"
+    },
+    {
+      "num": 8,
+      "title": "第 8 章：聲帶鎖定與微波短路",
+      "summary": "蘇默急中生智抄起第二個沙發墊物理悶壓異變體面部與喉嚨，徹底消音並使其癱瘓。"
     }
   ],
   "current_vol_title": "第一集：失聲火車",
@@ -129,7 +148,7 @@ default_data = {
   "generated_content": ""
 }
 
-# Session State 動態清單正確初始化
+# Session State 動態清單初始化
 if "character_list" not in st.session_state: st.session_state["character_list"] = default_data["character_list"]
 if "volumes_list" not in st.session_state: st.session_state["volumes_list"] = default_data["volumes_list"]
 if "chapters_list" not in st.session_state: st.session_state["chapters_list"] = default_data["chapters_list"]
@@ -146,18 +165,27 @@ uploaded_file = st.file_uploader("📤 匯入歷史設定檔 (.json / .txt)", ty
 if uploaded_file is not None:
     try:
         loaded_data = json.load(uploaded_file)
-        default_data.update(loaded_data)
         
-        if "character_list" in loaded_data: st.session_state["character_list"] = loaded_data["character_list"]
-        if "volumes_list" in loaded_data: st.session_state["volumes_list"] = loaded_data["volumes_list"]
-        if "chapters_list" in loaded_data: st.session_state["chapters_list"] = loaded_data["chapters_list"]
-        if "items_inventory" in loaded_data: st.session_state["items_inventory"] = loaded_data["items_inventory"]
-        if "confirmed_rules_list" in loaded_data: st.session_state["confirmed_rules_list"] = loaded_data["confirmed_rules_list"]
-        if "hypotheses_list" in loaded_data: st.session_state["hypotheses_list"] = loaded_data["hypotheses_list"]
-        if "clues_list" in loaded_data: st.session_state["clues_list"] = loaded_data["clues_list"]
-        if "generated_content" in loaded_data: st.session_state["generated_text"] = loaded_data["generated_content"]
+        # 🛡️ 安全鎖：優先將匯入檔案的資料完整寫入 Session State
+        if "items_inventory" in loaded_data: 
+            st.session_state["items_inventory"] = loaded_data["items_inventory"]
+        if "confirmed_rules_list" in loaded_data: 
+            st.session_state["confirmed_rules_list"] = loaded_data["confirmed_rules_list"]
+        if "hypotheses_list" in loaded_data: 
+            st.session_state["hypotheses_list"] = loaded_data["hypotheses_list"]
+        if "clues_list" in loaded_data: 
+            st.session_state["clues_list"] = loaded_data["clues_list"]
+        if "character_list" in loaded_data: 
+            st.session_state["character_list"] = loaded_data["character_list"]
+        if "chapters_list" in loaded_data: 
+            st.session_state["chapters_list"] = loaded_data["chapters_list"]
+        if "volumes_list" in loaded_data: 
+            st.session_state["volumes_list"] = loaded_data["volumes_list"]
+        if "generated_content" in loaded_data: 
+            st.session_state["generated_text"] = loaded_data["generated_content"]
             
-        st.success("✅ 成功載入歷史紀錄！")
+        default_data.update(loaded_data)
+        st.success("✅ 成功載入歷史紀錄！左側欄位與【蘇默的手機】等道具已全數完整還原！")
     except Exception as e:
         st.error(f"檔案格式錯誤：{str(e)}")
 
@@ -176,7 +204,7 @@ with st.sidebar:
     
     st.divider()
     
-    # 🎒 道具庫區 (修正邏輯)
+    # 🎒 道具庫區 (修正 ID 與渲染)
     col_it_t, col_it_a = st.columns([3, 1])
     with col_it_t: st.subheader("🎒 道具庫")
     with col_it_a:
@@ -201,7 +229,7 @@ with st.sidebar:
     st.divider()
     st.header("🧩 2. 規則與線索案件牆")
     
-    # ✅ 已驗證鐵律 (修正邏輯)
+    # ✅ 已驗證鐵律 (修正 ID 與渲染)
     col_r_t, col_r_a = st.columns([3, 1])
     with col_r_t: st.subheader("✅ 已驗證鐵律")
     with col_r_a:
@@ -222,7 +250,7 @@ with st.sidebar:
                 st.rerun()
         rules_text += f"{r_idx+1}. {r['content']}\n"
 
-    # ❓ 未驗證假說 (修正邏輯)
+    # ❓ 未驗證假說 (修正 ID 與渲染)
     col_h_t, col_h_a = st.columns([3, 1])
     with col_h_t: st.subheader("❓ 未驗證假說")
     with col_h_a:
@@ -243,7 +271,7 @@ with st.sidebar:
                 st.rerun()
         hypo_text += f"{h_idx+1}. {h['content']}\n"
 
-    # 🔍 關鍵線索庫 (修正邏輯)
+    # 🔍 關鍵線索庫 (修正 ID 與渲染)
     col_cl_t, col_cl_a = st.columns([3, 1])
     with col_cl_t: st.subheader("🔍 關鍵線索庫")
     with col_cl_a:
@@ -266,7 +294,7 @@ with st.sidebar:
 
     st.divider()
     
-    # 👥 角色卡片庫 (修正邏輯)
+    # 👥 角色卡片庫 (修正 ID 與渲染)
     col_char_t, col_char_a = st.columns([3, 1])
     with col_char_t: st.subheader("👥 角色卡片庫")
     with col_char_a:
@@ -331,7 +359,7 @@ with st.expander("⚙️ 點此展開【本章進階微調參數】", expanded=F
 
     writing_taboos = st.text_area("🚫 寫作禁忌", value=default_data["writing_taboos"], height=70)
 
-# 動態打包 JSON 下載
+# 打包 JSON 下載 (完全抓取 session_state)
 current_export_data = {
     "book_title": book_title,
     "book_theme": book_theme,
