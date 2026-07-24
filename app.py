@@ -27,7 +27,7 @@ st.markdown("""
 st.title("✍️ 專業小說家 AI 全書寫作工作站")
 st.caption("平時極簡流暢、進階可隨心調校（直連 Gemini API 免後端）的懸疑/規則小說創作主控台")
 
-# ================= 預設資料初始化 (含區域與地圖庫) =================
+# ================= 預設資料初始化 (含區域與角色分頁欄位) =================
 default_data = {
   "book_title": "《失號領域》",
   "book_theme": "懸疑 / 克蘇魯 / 規則怪談 / 物理解謎",
@@ -108,8 +108,11 @@ default_data = {
     {
       "id": "c1",
       "name": "蘇默",
-      "relation": "主角本人",
-      "summary": "剛要上大學第一天的理工科新生，因習慣用數據與物理公式抽象化恐怖現象來維持理智，在極度恐懼中展現出過人的邏輯推算能力。",
+      "category": "當前在場/主要角色",
+      "faction": "理工科大學新生 / 潛在虛空譯者",
+      "public_relation": "主角本人",
+      "hidden_motive": "以數據與物理公式抽象化恐怖現象來維持理智，極度渴望求生",
+      "summary": "剛要上大學第一天的理工科新生，因習慣用數據與物理公式抽象化恐怖現象來維持理智。",
       "personality": "理智、數據導向、表面冷靜實則極度驚恐、觀察力強",
       "status": "健康但體力消耗極大，手心出冷汗，手機電量消耗至93%",
       "sanity": "84%",
@@ -119,13 +122,30 @@ default_data = {
     {
       "id": "c2",
       "name": "西裝男",
-      "relation": "在11節車廂中偶遇",
+      "category": "當前在場/主要角色",
+      "faction": "11號車廂生還者",
+      "public_relation": "蘇默的臨時生死同盟",
+      "hidden_motive": "殘存極強求生本能，若左半身木化威脅生命，可能做出極端舉動",
       "summary": "中年上班族，陷入半身麻痺異變，與蘇默一同用體重卡住異變柱。",
       "personality": "殘存求生本能，忍痛能力強，具備執行力",
       "status": "左半身完全麻痺化為木頭與黑綠菌絲，右手可單手打字",
       "sanity": "60%",
       "speech_style": "無法發聲，透過右手在手機上記錄打字",
       "dialogue_example": "「死不了，但左邊身體全麻了，像一塊木頭。」"
+    },
+    {
+      "id": "c3",
+      "name": "簡訊人",
+      "category": "場外/通訊角色",
+      "faction": "未知第三方 / 遠程協助者",
+      "public_relation": "透過簡訊發送預警的神秘人",
+      "hidden_motive": "真實意圖未知，似乎對車上的異常了如指掌",
+      "summary": "透過手機簡訊提供車上情報的未知存在。",
+      "personality": "俏皮驚慌、情緒豐富",
+      "status": "未知",
+      "sanity": "未知",
+      "speech_style": "平時可愛俏皮、遇事驚慌",
+      "dialogue_example": "「哇啊啊啊啊」"
     }
   ],
   "chapters_list": [
@@ -194,7 +214,7 @@ if uploaded_file is not None:
         if "generated_content" in loaded_data: st.session_state["generated_text"] = loaded_data["generated_content"]
             
         default_data.update(loaded_data)
-        st.success("✅ 成功載入歷史紀錄！區域地圖與所有設定已完整還原！")
+        st.success("✅ 成功載入歷史紀錄！左側欄位已全部完整還原！")
     except Exception as e:
         st.error(f"檔案格式錯誤：{str(e)}")
 
@@ -213,19 +233,14 @@ with st.sidebar:
     
     st.divider()
     
-    # 🗺️ 區域與地圖庫區 (全新新增功能！)
+    # 🗺️ 區域與地圖庫區
     col_loc_t, col_loc_a = st.columns([3, 1])
     with col_loc_t: st.subheader("🗺️ 區域與地圖庫")
     with col_loc_a:
         if st.button("➕ 區域"):
             new_id = f"loc_{datetime.now().strftime('%M%S%f')}"
             st.session_state["location_list"].append({
-                "id": new_id, 
-                "name": "新區域/新城市", 
-                "scope": "適用範圍", 
-                "visual_style": "建築與視覺風格...", 
-                "physics_detail": "環境與物理異常...", 
-                "local_rules": "區域專屬禁忌/鐵律..."
+                "id": new_id, "name": "新區域", "scope": "適用範圍", "visual_style": "建築風格...", "physics_detail": "環境異常...", "local_rules": "區域規則..."
             })
             st.rerun()
 
@@ -238,7 +253,7 @@ with st.sidebar:
             loc['scope'] = st.text_input("適用範圍", value=loc['scope'], key=f"loc_sc_{loc_id}")
             loc['visual_style'] = st.text_area("🏛️ 視覺與建築特色", value=loc['visual_style'], key=f"loc_vs_{loc_id}", height=60)
             loc['physics_detail'] = st.text_area("⚙️ 環境與物理異常", value=loc['physics_detail'], key=f"loc_pd_{loc_id}", height=60)
-            loc['local_rules'] = st.text_area("🚫 區域專屬禁忌/規則", value=loc['local_rules'], key=f"loc_lr_{loc_id}", height=60)
+            loc['local_rules'] = st.text_area("🚫 區域專屬禁忌", value=loc['local_rules'], key=f"loc_lr_{loc_id}", height=60)
             if st.button("🗑️ 刪除區域", key=f"loc_d_{loc_id}"):
                 st.session_state["location_list"].pop(loc_idx)
                 st.rerun()
@@ -252,7 +267,7 @@ with st.sidebar:
     with col_it_a:
         if st.button("➕ 道具"):
             new_id = f"it_{datetime.now().strftime('%M%S%f')}"
-            st.session_state["items_inventory"].append({"id": new_id, "name": "新道具", "status": "狀態/特性", "owner": "持有者"})
+            st.session_state["items_inventory"].append({"id": new_id, "name": "新道具", "status": "狀態", "owner": "持有者"})
             st.rerun()
 
     items_text = ""
@@ -336,34 +351,57 @@ with st.sidebar:
 
     st.divider()
     
-    # 👥 角色卡片庫
+    # 👥 角色三分頁（Tabs）管理區
     col_char_t, col_char_a = st.columns([3, 1])
-    with col_char_t: st.subheader("👥 角色卡片庫")
+    with col_char_t: st.subheader("👥 角色卡片庫 (分頁管理)")
     with col_char_a:
         if st.button("➕ 角色"):
             new_c_id = f"c_{datetime.now().strftime('%M%S%f')}"
-            st.session_state["character_list"].append({"id": new_c_id, "name": "新角色", "relation": "關係", "summary": "簡介...", "personality": "性格", "status": "狀態", "sanity": "100%", "speech_style": "口吻", "dialogue_example": "台詞..."})
+            st.session_state["character_list"].append({
+                "id": new_c_id, "name": "新角色", "category": "當前在場/主要角色", 
+                "faction": "勢力/陣營", "public_relation": "表面關係", "hidden_motive": "隱藏動機",
+                "summary": "簡介...", "personality": "性格", "status": "生理狀態", "sanity": "100%", "speech_style": "口吻", "dialogue_example": "台詞..."
+            })
             st.rerun()
 
+    tab1, tab2, tab3 = st.tabs(["🔥 在場/主要", "📡 場外/通訊", "🪦 離場/變異"])
+    
+    categories = {
+        "當前在場/主要角色": tab1,
+        "場外/通訊角色": tab2,
+        "離場/變異/歷史角色": tab3
+    }
+    
     updated_characters_text = ""
     char_names_list = []
+    
     for c_idx in range(len(st.session_state["character_list"]) - 1, -1, -1):
         char = st.session_state["character_list"][c_idx]
         c_id = char.get("id", f"c_{c_idx}")
         char_names_list.append(char['name'])
-        with st.expander(f"👤 {char['name']} ({char['relation']})", expanded=False):
-            char['name'] = st.text_input("名稱", value=char['name'], key=f"c_n_{c_id}")
-            char['relation'] = st.text_input("關係", value=char['relation'], key=f"c_r_{c_id}")
-            char['summary'] = st.text_input("簡介", value=char['summary'], key=f"c_s_{c_id}")
-            char['personality'] = st.text_input("性格", value=char['personality'], key=f"c_p_{c_id}")
-            char['status'] = st.text_input("🩸 生理狀態", value=char['status'], key=f"c_st_{c_id}")
-            char['sanity'] = st.text_input("🧠 理智度 (SAN值)", value=char.get('sanity', '100%'), key=f"c_sn_{c_id}")
-            char['speech_style'] = st.text_input("口吻風格", value=char['speech_style'], key=f"c_sp_{c_id}")
-            char['dialogue_example'] = st.text_input("💬 代表台詞", value=char.get('dialogue_example', ''), key=f"c_dg_{c_id}")
-            if st.button("🗑️ 刪除角色", key=f"c_dl_{c_id}"):
-                st.session_state["character_list"].pop(c_idx)
-                st.rerun()
-        updated_characters_text += f"【{char['name']} ({char['relation']})】\n• 簡介：{char['summary']}\n• 生理狀態：{char['status']} | SAN值：{char.get('sanity', '100%')}\n---\n"
+        
+        # 相容性回退設定
+        c_cat = char.get('category', '當前在場/主要角色')
+        target_tab = categories.get(c_cat, tab1)
+        
+        with target_tab:
+            with st.expander(f"👤 {char['name']} ({char.get('faction', '無陣營')})", expanded=False):
+                char['name'] = st.text_input("名稱", value=char['name'], key=f"c_n_{c_id}")
+                char['category'] = st.selectbox("📌 歸類分頁", ["當前在場/主要角色", "場外/通訊角色", "離場/變異/歷史角色"], index=["當前在場/主要角色", "場外/通訊角色", "離場/變異/歷史角色"].index(c_cat) if c_cat in ["當前在場/主要角色", "場外/通訊角色", "離場/變異/歷史角色"] else 0, key=f"c_cat_{c_id}")
+                char['faction'] = st.text_input("⚔️ 勢力/陣營", value=char.get('faction', ''), key=f"c_f_{c_id}")
+                char['public_relation'] = st.text_input("🤝 表面關係", value=char.get('public_relation', ''), key=f"c_pr_{c_id}")
+                char['hidden_motive'] = st.text_input("🔒 隱藏動機/暗流", value=char.get('hidden_motive', ''), key=f"c_hm_{c_id}")
+                char['summary'] = st.text_input("簡介", value=char['summary'], key=f"c_s_{c_id}")
+                char['personality'] = st.text_input("性格", value=char['personality'], key=f"c_p_{c_id}")
+                char['status'] = st.text_input("🩸 生理狀態", value=char['status'], key=f"c_st_{c_id}")
+                char['sanity'] = st.text_input("🧠 理智度 (SAN值)", value=char.get('sanity', '100%'), key=f"c_sn_{c_id}")
+                char['speech_style'] = st.text_input("口吻風格", value=char['speech_style'], key=f"c_sp_{c_id}")
+                char['dialogue_example'] = st.text_input("💬 代表台詞", value=char.get('dialogue_example', ''), key=f"c_dg_{c_id}")
+                if st.button("🗑️ 刪除角色", key=f"c_dl_{c_id}"):
+                    st.session_state["character_list"].pop(c_idx)
+                    st.rerun()
+                    
+        updated_characters_text += f"【{char['name']} ({char.get('faction', '未知陣營')})】\n• 分頁分類：{char.get('category', '主要')}\n• 表面關係：{char.get('public_relation', '無')}\n• 隱藏動機：{char.get('hidden_motive', '無')}\n• 簡介：{char['summary']}\n• 生理狀態：{char['status']} | SAN值：{char.get('sanity', '100%')}\n---\n"
 
 # ================= 主畫面：寫作工作區 =================
 st.subheader(f"📖 3. 當前撰寫：{book_title}")
@@ -401,7 +439,7 @@ with st.expander("⚙️ 點此展開【本章進階微調參數】", expanded=F
 
     writing_taboos = st.text_area("🚫 寫作禁忌", value=default_data["writing_taboos"], height=70)
 
-# 打包 JSON 下載 (完全抓取包含 location_list 的 session_state)
+# 打包 JSON 下載 (包含全部動態 Session State)
 current_export_data = {
     "book_title": book_title,
     "book_theme": book_theme,
@@ -410,7 +448,7 @@ current_export_data = {
     "hypotheses_list": st.session_state["hypotheses_list"],
     "clues_list": st.session_state["clues_list"],
     "items_inventory": st.session_state["items_inventory"],
-    "location_list": st.session_state["location_list"], # 自動備份區域設定！
+    "location_list": st.session_state["location_list"],
     "volumes_list": st.session_state["volumes_list"],
     "character_list": st.session_state["character_list"],
     "chapters_list": st.session_state["chapters_list"],
@@ -449,7 +487,7 @@ st.divider()
 
 generate_btn = st.button("✨ 開始生成本章小說內文", type="primary", use_container_width=True)
 
-# ================= 直連 Gemini API 生成邏輯 (包含區域資料) =================
+# ================= 直連 Gemini API 生成邏輯 =================
 if generate_btn:
     if not active_api_key:
         st.error("❌ 找不到 Gemini API Key！請在側邊欄填入 Key。")
@@ -473,7 +511,7 @@ if generate_btn:
 • 當前可用道具庫：
 {items_text}
 
-【登場角色】
+【登場角色與複雜關係鏈】
 {updated_characters_text}
 
 【上一章銜接點】
@@ -491,7 +529,7 @@ if generate_btn:
 • 必須包含元素：\n{must_include}
 • 寫作禁忌：\n{writing_taboos}
 
-【要求】直接輸出小說內文，保持極度壓抑、嚴密符合物理消能與規則怪談的氣氛。嚴格遵守當前區域的物理異常與規則禁忌，絕對不允許角色開口發聲。
+【要求】直接輸出小說內文，保持極度壓抑、嚴密符合物理消能與規則怪談的氣氛。嚴格遵守角色之間的隱藏動機與表面關係進行微妙的對話與動作對抗。絕對不允許角色開口發聲。
 """
 
         try:
