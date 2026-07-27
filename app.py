@@ -203,6 +203,7 @@ if uploaded_file is not None:
     try:
         loaded_data = json.load(uploaded_file)
         
+        # 覆蓋動態 Session State 清單
         if "items_inventory" in loaded_data: st.session_state["items_inventory"] = loaded_data["items_inventory"]
         if "location_list" in loaded_data: st.session_state["location_list"] = loaded_data["location_list"]
         if "confirmed_rules_list" in loaded_data: st.session_state["confirmed_rules_list"] = loaded_data["confirmed_rules_list"]
@@ -214,6 +215,12 @@ if uploaded_file is not None:
         if "generated_content" in loaded_data: st.session_state["generated_text"] = loaded_data["generated_content"]
             
         default_data.update(loaded_data)
+        
+        # ⚡ 檢查上傳標記，觸發 rerun 刷新全頁面表單
+        if not st.session_state.get("file_uploaded_flag"):
+            st.session_state["file_uploaded_flag"] = True
+            st.rerun()
+            
         st.success("✅ 成功載入歷史紀錄！左側欄位已全部完整還原！")
     except Exception as e:
         st.error(f"檔案格式錯誤：{str(e)}")
