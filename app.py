@@ -275,6 +275,25 @@ with col_m3:
 app_data["previous_summary"] = st.text_area("📌 上一章結尾錨點 (銜接點)", value=app_data.get("previous_summary", ""), height=100, key=f"ps_{ver}")
 app_data["chapter_outline"] = st.text_area("🎯 本章具體大綱與情節推進", value=app_data.get("chapter_outline", ""), height=120, key=f"co_{ver}")
 
+# 🔧 【補回進階設定區塊】
+with st.expander("⚙️ 本章進階寫作參數設定（視角、基調、衝突與禁忌）", expanded=False):
+    col_adv1, col_adv2 = st.columns(2)
+    with col_adv1:
+        app_data["pov_type"] = st.selectbox("👁️ 寫作視角", ["第一人稱", "第三人稱限制視角", "第三人稱全知視角"], index=["第一人稱", "第三人稱限制視角", "第三人稱全知視角"].index(app_data.get("pov_type", "第一人稱")) if app_data.get("pov_type") in ["第一人稱", "第三人稱限制視角", "第三人稱全知視角"] else 0, key=f"pov_t_{ver}")
+        app_data["pov_character"] = st.text_input("👤 視角聚焦角色", value=app_data.get("pov_character", ""), key=f"pov_c_{ver}")
+        app_data["pacing_setting"] = st.text_input("⏱️ 節奏控制", value=app_data.get("pacing_setting", "中速推演 (解謎/搜查/對話)"), key=f"ps_set_{ver}")
+        app_data["tone_setting"] = st.text_input("🎨 氣氛與基調", value=app_data.get("tone_setting", "極度壓抑、懸疑冷酷"), key=f"ts_{ver}")
+    with col_adv2:
+        app_data["time_and_environment"] = st.text_input("⏳ 時間與環境氣候錨點", value=app_data.get("time_and_environment", ""), key=f"tae_{ver}")
+        app_data["sensory_details"] = st.text_input("👁️👂 著重感官描寫 (視覺/聽覺/嗅覺)", value=app_data.get("sensory_details", ""), key=f"sd_{ver}")
+        app_data["must_include"] = st.text_input("📌 本章必須出現的元素/台詞", value=app_data.get("must_include", ""), key=f"mi_{ver}")
+        app_data["writing_taboos"] = st.text_input("🚫 本章寫作禁忌 (Negative Prompt)", value=app_data.get("writing_taboos", ""), key=f"wt_{ver}")
+    
+    st.divider()
+    app_data["scene_conflict"] = st.text_area("💥 主要核心衝突", value=app_data.get("scene_conflict", ""), height=60, key=f"sc_{ver}")
+    app_data["scene_turn"] = st.text_area("🔄 情節轉折點", value=app_data.get("scene_turn", ""), height=60, key=f"st_{ver}")
+    app_data["reveal_and_mystery"] = st.text_area("🔍 本章揭露/留下的懸念", value=app_data.get("reveal_and_mystery", ""), height=60, key=f"ram_{ver}")
+
 # 打包 JSON 下載
 app_data["saved_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 json_string = json.dumps(app_data, ensure_ascii=False, indent=2)
@@ -325,7 +344,14 @@ if generate_btn:
 • 當前章節：{app_data.get('current_vol_title')} 第 {app_data.get('current_chap')} 章
 • 本章大綱：{app_data.get('chapter_outline')}
 • 目標字數：約 {app_data.get('target_chapter_words')} 字
-• 寫作禁忌 (Negative Prompt)：\n{app_data.get('writing_taboos', '')}
+• 寫作視角：{app_data.get('pov_type')}（聚焦角色：{app_data.get('pov_character')}）
+• 節奏與氣氛：{app_data.get('pacing_setting')} / {app_data.get('tone_setting')}
+• 時間環境錨點：{app_data.get('time_and_environment')}
+• 感官著重點：{app_data.get('sensory_details')}
+• 核心衝突與轉折：{app_data.get('scene_conflict')} -> {app_data.get('scene_turn')}
+• 揭露與懸念：{app_data.get('reveal_and_mystery')}
+• 必須包含元素：{app_data.get('must_include')}
+• 寫作禁忌 (Negative Prompt)：{app_data.get('writing_taboos')}
 
 【寫作與格式極嚴格要求】
 1. 直接輸出純小說內文，不要帶有任何開場白、結語。
