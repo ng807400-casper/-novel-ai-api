@@ -73,11 +73,10 @@ default_data = {
   "generated_content": ""
 }
 
-# 🔑 用於解決 Streamlit 舊 Key 殘留的版本版本計數器
+# 🔑 版本計數器，用於徹底清理舊輸入框快取
 if "upload_ver" not in st.session_state:
     st.session_state["upload_ver"] = 0
 
-# Session State 動態清單初始化
 if "app_data" not in st.session_state:
     st.session_state["app_data"] = default_data
 
@@ -88,12 +87,9 @@ uploaded_file = st.file_uploader("📤 匯入歷史設定檔 (.json / .txt)", ty
 if uploaded_file is not None:
     try:
         loaded_data = json.load(uploaded_file)
-        
-        # 覆蓋主動態資料庫，徹底清除舊預設值
         st.session_state["app_data"] = loaded_data
-        st.session_state["upload_ver"] += 1  # 遞增版本號，強制流覽器刷新全部輸入框快取
-        
-        st.success("✅ 成功載入歷史紀錄！所有欄位已按 JSON 檔案徹底還原！")
+        st.session_state["upload_ver"] += 1
+        st.success("✅ 成功載入歷史紀錄！所有欄位已徹底同步！")
         st.rerun()
     except Exception as e:
         st.error(f"檔案格式錯誤：{str(e)}")
@@ -338,16 +334,40 @@ if generate_btn:
 
         try:
             genai.configure(api_key=active_api_key)
-            model = genai.GenerativeModel("gemini-1.5-flash")
+            
+            # 🚀 1. 自動匹配最高速的 API 模型（優先使用 2.0-flash 或 flash-latest）
+            available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+            selected_model = "models/gemini-2.0-flash"
+            
+            if selected_model not in available_models:
+                for alt in ["models/gemini-flash-latest", "models/gemini-1.5-flash"]:
+                    if alt in available_models:
+                        selected_model = alt
+                        break
+                else:
+                    if available_models: selected_model = available_models[0]
+            
+            clean_model_name = selected_model.replace("models/", "")
+            st.caption(f"⚡ 自動連線極速模型：`{clean_model_name}`")
+            
+            model = genai.GenerativeModel(clean_model_name)
             output_box = st.empty()
             full_text = ""
+            text_buffer = ""
             
+            # 🚀 2. 採用平滑緩衝區繪圖 (Buffer Render)，徹底消除畫面與 API 卡頓
             response = model.generate_content(prompt, stream=True)
             for chunk in response:
                 if chunk.text:
                     full_text += chunk.text
-                    output_box.markdown(full_text)
-                    
+                    text_buffer += chunk.text
+                    # 每累積 15 個字才刷新一次畫面，畫面流暢度大升
+                    if len(text_buffer) >= 15:
+                        output_box.markdown(full_text)
+                        text_buffer = ""
+            
+            # 最後補齊剩餘文字
+            output_box.markdown(full_text)
             app_data["generated_content"] = full_text
             st.success("🎉 本章生成完成！")
             
