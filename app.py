@@ -3,6 +3,7 @@ import json
 import os
 import google.generativeai as genai
 from datetime import datetime
+import streamlit.components.v1 as components
 
 # 頁面基本設定
 st.set_page_config(page_title="專業小說家 AI 寫作工作站", page_icon="✍️", layout="wide")
@@ -150,24 +151,20 @@ with tab_main:
             app_data["scene_turn"] = st.text_area("🔄 本章局勢/認知大翻轉", value=app_data.get("scene_turn", ""), height=70, key=f"st_{ver}")
             app_data["reveal_and_mystery"] = st.text_area("🔍 伏筆揭示與新未知懸念", value=app_data.get("reveal_and_mystery", ""), height=70, key=f"rm_{ver}")
 
-        app_data["writing_taboos"] = st.text_area("🚫 寫作禁忌", value=app_data.get("writing_taboos", ""), height=70, key=f"wt_{ver}")
+        app_data["writing_taboos"] = st.text_area("🚫 寫作禁忌", value=app_data.get("writing_taboos", ""), height=150, key=f"wt_{ver}")
 
     st.divider()
     generate_btn = st.button("✨ 開始生成本章小說內文 (AI 自動捕捉與記錄伏筆)", type="primary", use_container_width=True, key=f"gen_btn_{ver}")
 
-    # 剛好生成完畢時，跳出成功提示提示
     if st.session_state["just_generated"]:
         st.success("🎉 最新一章小說生成完成！AI 捕捉到的全新伏筆已自動同步至『🔮 長線伏筆』分頁！")
         st.session_state["just_generated"] = False
 
-    # 展示最新生成的內文與純文字複製框
     if app_data.get("generated_content"):
         st.markdown("---")
         st.subheader("📝 本章最新生成成果：")
-        
         st.caption("📋 請直接點擊下方文字框右上角的『複製』圖示，即可一鍵複製全文：")
         st.code(app_data["generated_content"], language="text")
-        
         st.text_area("📋 複製專用純文字框 (備用)", value=app_data["generated_content"], height=300, key=f"res_ta_live_{ver}")
 
 # ---------------- Tab 2: 長線伏筆與案件牆 ----------------
@@ -191,34 +188,28 @@ with tab_foreshadow:
     f_list = app_data.get("foreshadowing_list", [])
     
     if not f_list:
-        st.info("💡 目前尚無紀錄中的伏筆。按下生成小說按鈕時，AI 會自動將寫作中種下的新伏筆記錄到這裡！")
+        st.info("💡 目前尚無紀錄中的伏筆。按下生成小說按鈕時，AI 會自動將編寫中種下的新伏筆記錄到這裡！")
     else:
-        tab_f1, tab_f2, tab_f3 = st.tabs(["📌 待解答/埋下中", "🔄 揭露中/推演中", "✅ 已完全回收"])
+        # 🔑 1. 精準安全刪除機制（使用唯一 ID 精確匹配，避免一口氣刪光）
+        delete_target_id = None
         
-        for f_idx in range(len(f_list) - 1, -1, -1):
-            f_item = f_list[f_idx]
+        for f_idx, f_item in enumerate(f_list):
             f_id = f_item.get("id", f"f_{f_idx}")
             status_str = f_item.get("status", "待解答")
+            title_preview = f_item.get('content', '未命名伏筆')
+            if len(title_preview) > 20: title_preview = title_preview[:20] + "..."
             
-            if "回收" in status_str or "完全解答" in status_str or "已解答" in status_str:
-                target_f_tab = tab_f3
-            elif "揭露中" in status_str or "推演中" in status_str or "部分" in status_str:
-                target_f_tab = tab_f2
-            else:
-                target_f_tab = tab_f1
-
-            with target_f_tab:
-                title_preview = f_item.get('content', '未命名伏筆')
-                if len(title_preview) > 20: title_preview = title_preview[:20] + "..."
+            with st.expander(f"🔮 伏筆：{title_preview} 【{status_str}】", expanded=True):
+                f_item['content'] = st.text_input("📍 伏筆表面現象/描寫細節", value=f_item.get('content', ''), key=f"fc_{f_id}_{ver}")
+                f_item['status'] = st.text_input("⏱️ 當前狀態/預計解答章節", value=f_item.get('status', ''), key=f"fs_{f_id}_{ver}")
+                f_item['truth'] = st.text_area("🔒 隱藏真相 (AI 寫作會參考，暫不對讀者直接公開)", value=f_item.get('truth', ''), height=80, key=f"ft_{f_id}_{ver}")
                 
-                with st.expander(f"🔮 伏筆：{title_preview} 【{status_str}】", expanded=True):
-                    f_item['content'] = st.text_input("📍 伏筆表面現象/描寫細節", value=f_item.get('content', ''), key=f"fc_{f_id}_{ver}")
-                    f_item['status'] = st.text_input("⏱️ 當前狀態/預計解答章節", value=f_item.get('status', ''), key=f"fs_{f_id}_{ver}")
-                    f_item['truth'] = st.text_area("🔒 隱藏真相 (AI 寫作會參考，暫不對讀者直接公開)", value=f_item.get('truth', ''), height=80, key=f"ft_{f_id}_{ver}")
-                    
-                    if st.button("🗑️ 刪除此伏筆", key=f"fd_{f_id}_{ver}"):
-                        f_list.pop(f_idx)
-                        st.rerun()
+                if st.button("🗑️ 刪除此伏筆", key=f"fd_{f_id}_{ver}"):
+                    delete_target_id = f_id
+
+        if delete_target_id:
+            app_data["foreshadowing_list"] = [item for item in app_data["foreshadowing_list"] if item.get("id") != delete_target_id]
+            st.rerun()
 
 # ---------------- Tab 3: 世界觀與地圖庫 ----------------
 with tab_world:
@@ -244,8 +235,8 @@ with tab_world:
             st.rerun()
 
     loc_list = app_data.get("location_list", [])
-    for loc_idx in range(len(loc_list) - 1, -1, -1):
-        loc = loc_list[loc_idx]
+    loc_del_id = None
+    for loc_idx, loc in enumerate(loc_list):
         loc_id = loc.get("id", f"loc_{loc_idx}")
         with st.expander(f"📍 {loc.get('name', '區域')} ({loc.get('scope', '')})", expanded=True):
             loc['name'] = st.text_input("區域名稱", value=loc.get('name', ''), key=f"loc_n_{loc_id}_{ver}")
@@ -254,8 +245,10 @@ with tab_world:
             loc['physics_detail'] = st.text_area("⚙️ 環境與物理異常", value=loc.get('physics_detail', ''), key=f"loc_pd_{loc_id}_{ver}", height=60)
             loc['local_rules'] = st.text_area("🚫 區域專屬禁忌", value=loc.get('local_rules', ''), key=f"loc_lr_{loc_id}_{ver}", height=60)
             if st.button("🗑️ 刪除此區域", key=f"loc_d_{loc_id}_{ver}"):
-                loc_list.pop(loc_idx)
-                st.rerun()
+                loc_del_id = loc_id
+    if loc_del_id:
+        app_data["location_list"] = [l for l in app_data["location_list"] if l.get("id") != loc_del_id]
+        st.rerun()
 
 # ---------------- Tab 4: 道具與規則案件牆 ----------------
 with tab_items:
@@ -270,16 +263,18 @@ with tab_items:
             st.rerun()
 
     items_list = app_data.get("items_inventory", [])
-    for it_idx in range(len(items_list) - 1, -1, -1):
-        item = items_list[it_idx]
+    it_del_id = None
+    for it_idx, item in enumerate(items_list):
         item_id = item.get("id", f"it_{it_idx}")
         with st.expander(f"📦 {item.get('name', '道具')} ({item.get('owner', '')})", expanded=True):
             item['name'] = st.text_input("名稱", value=item.get('name', ''), key=f"it_n_{item_id}_{ver}")
             item['owner'] = st.text_input("持有者", value=item.get('owner', ''), key=f"it_o_{item_id}_{ver}")
             item['status'] = st.text_input("狀態", value=item.get('status', ''), key=f"it_s_{item_id}_{ver}")
             if st.button("🗑️ 刪除此道具", key=f"it_d_{item_id}_{ver}"):
-                items_list.pop(it_idx)
-                st.rerun()
+                it_del_id = item_id
+    if it_del_id:
+        app_data["items_inventory"] = [i for i in app_data["items_inventory"] if i.get("id") != it_del_id]
+        st.rerun()
 
     st.divider()
     
@@ -292,15 +287,17 @@ with tab_items:
             st.rerun()
             
     rules_list = app_data.get("confirmed_rules_list", [])
-    for r_idx in range(len(rules_list) - 1, -1, -1):
-        r = rules_list[r_idx]
+    r_del_id = None
+    for r_idx, r in enumerate(rules_list):
         r_id = r.get("id", f"r_{r_idx}")
         col_rx, col_rd = st.columns([5, 1])
         with col_rx: r['content'] = st.text_input(f"鐵律 {r_idx+1}", value=r.get('content', ''), key=f"r_val_{r_id}_{ver}", label_visibility="collapsed")
         with col_rd:
             if st.button("🗑️", key=f"r_del_{r_id}_{ver}"):
-                rules_list.pop(r_idx)
-                st.rerun()
+                r_del_id = r_id
+    if r_del_id:
+        app_data["confirmed_rules_list"] = [r for r in app_data["confirmed_rules_list"] if r.get("id") != r_del_id]
+        st.rerun()
 
     col_cl_t, col_cl_a = st.columns([3, 1])
     with col_cl_t: st.subheader("🔍 關鍵線索庫")
@@ -311,15 +308,17 @@ with tab_items:
             st.rerun()
 
     clues_list = app_data.get("clues_list", [])
-    for cl_idx in range(len(clues_list) - 1, -1, -1):
-        cl = clues_list[cl_idx]
+    cl_del_id = None
+    for cl_idx, cl in enumerate(clues_list):
         cl_id = cl.get("id", f"cl_{cl_idx}")
         col_clx, col_cld = st.columns([5, 1])
         with col_clx: cl['content'] = st.text_input(f"線索 {cl_idx+1}", value=cl.get('content', ''), key=f"cl_val_{cl_id}_{ver}", label_visibility="collapsed")
         with col_cld:
             if st.button("🗑️", key=f"cl_del_{cl_id}_{ver}"):
-                clues_list.pop(cl_idx)
-                st.rerun()
+                cl_del_id = cl_id
+    if cl_del_id:
+        app_data["clues_list"] = [c for c in app_data["clues_list"] if c.get("id") != cl_del_id]
+        st.rerun()
 
 # ---------------- Tab 5: 角色卡片庫 ----------------
 with tab_chars:
@@ -339,11 +338,10 @@ with tab_chars:
     categories = {"當前在場/主要角色": tab_c1, "場外/通訊角色": tab_c2, "離場/變異/歷史角色": tab_c3}
     
     char_list = app_data.get("character_list", [])
+    c_del_id = None
     
-    for c_idx in range(len(char_list) - 1, -1, -1):
-        char = char_list[c_idx]
+    for c_idx, char in enumerate(char_list):
         c_id = char.get("id", f"c_{c_idx}")
-        
         c_cat = char.get('category', '當前在場/主要角色')
         target_tab = categories.get(c_cat, tab_c1)
         
@@ -361,8 +359,10 @@ with tab_chars:
                 char['speech_style'] = st.text_input("口吻風格", value=char.get('speech_style', ''), key=f"c_sp_{c_id}_{ver}")
                 char['dialogue_example'] = st.text_input("💬 代表台詞", value=char.get('dialogue_example', ''), key=f"c_dg_{c_id}_{ver}")
                 if st.button("🗑️ 刪除角色", key=f"c_dl_{c_id}_{ver}"):
-                    char_list.pop(c_idx)
-                    st.rerun()
+                    c_del_id = c_id
+    if c_del_id:
+        app_data["character_list"] = [c for c in app_data["character_list"] if c.get("id") != c_del_id]
+        st.rerun()
 
 # ---------------- Tab 6: API 設定與存檔管理 ----------------
 with tab_system:
@@ -429,7 +429,7 @@ foreshadowing_context = "".join([
     for f in app_data.get("foreshadowing_list", [])
 ])
 
-# ================= 直連 Gemini API 生成邏輯 =================
+# ================= 直連 Gemini API 生成邏輯 (含 Response Schema 強制驗證) =================
 if generate_btn:
     if not active_api_key:
         st.error("❌ 找不到 Gemini API Key！請先在『💾 API 設定與存檔管理』頁面填入 Key。")
@@ -451,7 +451,7 @@ if generate_btn:
 """
 
         prompt = f"""
-你是一位頂級的懸疑 / 克蘇魯 / 規則怪談小說作家。請根據以下完整的全書世界觀、區域設定與本章微調指令，為我撰寫小說最新一章的純內文，並自動捕捉你在內文中順手埋下的新伏筆。
+你是一位頂級的懸疑 / 克蘇魯 / 規則怪談小說作家。請根據以下完整的全書世界觀、區域設定與本章微調指令，為我撰寫小說最新一章的純內文，並自動捕捉你在此章寫作時順手埋下的 1~2 個新伏筆。
 
 【全書背景】
 • 書名：{app_data.get('book_title')} ({app_data.get('book_theme')})
@@ -487,30 +487,48 @@ if generate_btn:
 • 必須包含元素：\n{app_data.get('must_include')}
 • 寫作禁忌 (Negative Prompt)：\n{app_data.get('writing_taboos')}
 
-【極重要輸出格式要求】
-請務必輸出符合 JSON 規範的物件，包含以下兩個 Key：
-1. "novel_text": 本章的小說純內文（需符合所有寫作禁忌與風格，嚴禁任何開場白或結語）。
-2. "new_foreshadowing": 一個陣列，記錄你在本章寫作時順手埋下的全新伏筆（若沒有則給 []）。
-   每個伏筆包含：
-   - "content": 伏筆表面現象描述（例如：吧台下沾血的舊報紙）
-   - "status": 預計回收計畫（例如：待解答 (預計第7章解答)）
-   - "truth": 背後真實原因（例如：報紙上記錄著當年列車的秘密）
+【關鍵任務】
+請撰寫本章內文，同時在 new_foreshadowing 中列出你本章順手埋下的新伏筆細節（表面現象、預計解答章節、隱藏真相）。
 """
 
         try:
             genai.configure(api_key=active_api_key)
             
-            target_model = "gemini-flash-latest"
+            # 🔑 2. 定義硬性 JSON 結構 (Response Schema)，強制 API 回傳符合格式的 JSON
+            response_schema = {
+                "type": "OBJECT",
+                "properties": {
+                    "novel_text": {"type": "STRING"},
+                    "new_foreshadowing": {
+                        "type": "ARRAY",
+                        "items": {
+                            "type": "OBJECT",
+                            "properties": {
+                                "content": {"type": "STRING"},
+                                "status": {"type": "STRING"},
+                                "truth": {"type": "STRING"}
+                            },
+                            "required": ["content", "status", "truth"]
+                        }
+                    }
+                },
+                "required": ["novel_text", "new_foreshadowing"]
+            }
+
+            target_model = "gemini-1.5-flash"
             try:
                 model = genai.GenerativeModel(target_model)
             except Exception:
-                target_model = "gemini-3.5-flash"
+                target_model = "gemini-2.0-flash"
                 model = genai.GenerativeModel(target_model)
             
-            with st.spinner("✨ 正在撰寫小說內文並自動抓取伏筆中..."):
+            with st.spinner("✨ 正在撰寫小說內文並強制捕捉伏筆中..."):
                 response = model.generate_content(
                     prompt,
-                    generation_config={"response_mime_type": "application/json"}
+                    generation_config={
+                        "response_mime_type": "application/json",
+                        "response_schema": response_schema
+                    }
                 )
             
             result_json = json.loads(response.text)
@@ -532,7 +550,6 @@ if generate_btn:
                         "truth": nf.get("truth", "")
                     })
 
-            # ⚡ 標記生成完成鎖，並觸發安全的 rerun，徹底解決 React DOM 崩潰問題！
             st.session_state["just_generated"] = True
             st.rerun()
 
