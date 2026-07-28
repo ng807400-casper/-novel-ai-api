@@ -496,7 +496,7 @@ if generate_btn:
         try:
             genai.configure(api_key=active_api_key)
             
-            target_model = "gemini-1.5-flash"
+            target_model = "gemini-flash-latest"
             try:
                 model = genai.GenerativeModel(target_model)
                 st.caption(f"⚡ 成功連線高頻極速模型：`{target_model}`")
