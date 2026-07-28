@@ -7,7 +7,7 @@ from datetime import datetime
 # 頁面基本設定
 st.set_page_config(page_title="專業小說家 AI 寫作工作站", page_icon="✍️", layout="wide")
 
-# 🔓 強制解鎖全頁面文字選取與複製 (全瀏覽器 / 手機相容)
+# 🔓 強制解鎖全頁面文字選取與複製 + 優化文字框換行排版
 st.markdown("""
     <style>
     * {
@@ -17,8 +17,14 @@ st.markdown("""
         user-select: text !important;
     }
     .stMarkdown p {
-        font-size: 1.05rem !important;
+        font-size: 1.1rem !important;
+        line-height: 2.0 !important;
+        margin-bottom: 1.2rem !important;
+    }
+    textarea {
+        font-size: 1rem !important;
         line-height: 1.8 !important;
+        white-space: pre-wrap !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -162,9 +168,13 @@ with tab_main:
     if app_data.get("generated_content"):
         st.markdown("---")
         st.subheader("📝 本章最新生成成果：")
-        st.caption("📋 請直接點擊下方文字框右上角的『複製』圖示，即可一鍵複製全文：")
-        st.code(app_data["generated_content"], language="text")
-        st.text_area("📋 複製專用純文字框 (備用)", value=app_data["generated_content"], height=300, key=f"res_ta_live_{ver}")
+        
+        # 加高純文字框 (600px)，方便複製與對照
+        st.text_area("📋 複製與編輯專用文字框 (已自動分段與斷行)", value=app_data["generated_content"], height=600, key=f"res_ta_live_{ver}")
+        
+        st.markdown("---")
+        st.markdown("### 📖 全章閱讀預覽 Mode：")
+        st.markdown(app_data["generated_content"])
 
 # ---------------- Tab 2: 長線伏筆與案件牆 ----------------
 with tab_foreshadow:
@@ -427,7 +437,7 @@ foreshadowing_context = "".join([
     for f in app_data.get("foreshadowing_list", [])
 ])
 
-# ================= 直連 Gemini API 生成邏輯 (正確修復模型字串名稱) =================
+# ================= 直連 Gemini API 生成邏輯 (強化斷行與自然段落) =================
 if generate_btn:
     if not active_api_key:
         st.error("❌ 找不到 Gemini API Key！請先在『💾 API 設定與存檔管理』頁面填入 Key。")
@@ -485,6 +495,9 @@ if generate_btn:
 • 必須包含元素：\n{app_data.get('must_include')}
 • 寫作禁忌 (Negative Prompt)：\n{app_data.get('writing_taboos')}
 
+【極重要排版規範】
+撰寫 novel_text 時，請務必按照中文出版小說格式，每段之間使用雙換行 (\\n\\n) 進行清晰分段，切勿將文字擠在同一行或單長段落中！
+
 【關鍵任務】
 請撰寫本章內文，同時在 new_foreshadowing 中列出你本章順手埋下的新伏筆細節（表面現象、預計解答章節、隱藏真相）。
 """
@@ -492,7 +505,6 @@ if generate_btn:
         try:
             genai.configure(api_key=active_api_key)
             
-            # 硬性 JSON 結構規範 (Response Schema)
             response_schema = {
                 "type": "OBJECT",
                 "properties": {
@@ -513,7 +525,6 @@ if generate_btn:
                 "required": ["novel_text", "new_foreshadowing"]
             }
 
-            # 🎯 正確 SDK 模型名稱調用：優先 gemini-flash-latest，備選 gemini-3.5-flash
             target_model = "gemini-flash-latest"
             try:
                 model = genai.GenerativeModel(target_model)
