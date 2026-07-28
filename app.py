@@ -77,13 +77,16 @@ default_data = {
   "generated_content": ""
 }
 
-# 全域數據綁定
+# 全域 Session State 數據與版本號綁定
 if "app_data" not in st.session_state:
     st.session_state["app_data"] = default_data
 if "last_uploaded_filename" not in st.session_state:
     st.session_state["last_uploaded_filename"] = None
+if "upload_ver" not in st.session_state:
+    st.session_state["upload_ver"] = 0
 
 app_data = st.session_state["app_data"]
+ver = st.session_state["upload_ver"]
 
 # ================= 主頁面頂部：主分頁選單 =================
 tab_main, tab_world, tab_items, tab_chars, tab_system = st.tabs([
@@ -100,14 +103,14 @@ with tab_main:
     
     col_m1, col_m2, col_m3 = st.columns(3)
     with col_m1:
-        app_data["current_vol_title"] = st.text_input("🎯 當前集數", value=app_data.get("current_vol_title", "第一集：失聲火車"))
+        app_data["current_vol_title"] = st.text_input("🎯 當前集數", value=app_data.get("current_vol_title", "第一集：失聲火車"), key=f"cvt_{ver}")
     with col_m2:
-        app_data["current_chap"] = st.number_input("目前章節", value=int(app_data.get("current_chap", 1)), min_value=1)
+        app_data["current_chap"] = st.number_input("目前章節", value=int(app_data.get("current_chap", 1)), min_value=1, key=f"cc_{ver}")
     with col_m3:
-        app_data["target_chapter_words"] = st.number_input("🎯 本章目標字數", value=int(app_data.get("target_chapter_words", 3000)), step=500)
+        app_data["target_chapter_words"] = st.number_input("🎯 本章目標字數", value=int(app_data.get("target_chapter_words", 3000)), step=500, key=f"tcw_{ver}")
 
-    app_data["previous_summary"] = st.text_area("📌 上一章結尾錨點 (銜接點)", value=app_data.get("previous_summary", ""), height=100)
-    app_data["chapter_outline"] = st.text_area("🎯 本章具體大綱與情節推進 (主要寫作指令)", value=app_data.get("chapter_outline", ""), height=120)
+    app_data["previous_summary"] = st.text_area("📌 上一章結尾錨點 (銜接點)", value=app_data.get("previous_summary", ""), height=100, key=f"ps_{ver}")
+    app_data["chapter_outline"] = st.text_area("🎯 本章具體大綱與情節推進 (主要寫作指令)", value=app_data.get("chapter_outline", ""), height=120, key=f"co_{ver}")
 
     with st.expander("⚙️ 點此展開【本章進階微調參數】", expanded=False):
         char_names_list = [c.get('name', '蘇默') for c in app_data.get("character_list", [])]
@@ -117,37 +120,37 @@ with tab_main:
             pov_options = ["第一人稱", "第三人稱限制視角", "第三人稱全知視角"]
             cur_pov = app_data.get("pov_type", "第一人稱")
             pov_idx = pov_options.index(cur_pov) if cur_pov in pov_options else 0
-            app_data["pov_type"] = st.selectbox("👁️ 視角類型", pov_options, index=pov_idx)
+            app_data["pov_type"] = st.selectbox("👁️ 視角類型", pov_options, index=pov_idx, key=f"pov_t_{ver}")
         with col_env2:
             cur_pov_char = app_data.get("pov_character", "蘇默")
             pchar_idx = char_names_list.index(cur_pov_char) if cur_pov_char in char_names_list else 0
-            app_data["pov_character"] = st.selectbox("👤 描寫視角主角", char_names_list if char_names_list else ["蘇默"], index=pchar_idx)
+            app_data["pov_character"] = st.selectbox("👤 描寫視角主角", char_names_list if char_names_list else ["蘇默"], index=pchar_idx, key=f"pov_c_{ver}")
         with col_env3:
             pacing_opts = ["中速推演 (解謎/搜查/對話)", "高速推進 (動作/戰鬥/逃跑)", "慢速壓抑 (鋪陳/恐懼/氛圍)"]
             cur_pacing = app_data.get("pacing_setting", "中速推演 (解謎/搜查/對話)")
             pace_idx = pacing_opts.index(cur_pacing) if cur_pacing in pacing_opts else 0
-            app_data["pacing_setting"] = st.selectbox("⚡ 寫作節奏", pacing_opts, index=pace_idx)
+            app_data["pacing_setting"] = st.selectbox("⚡ 寫作節奏", pacing_opts, index=pace_idx, key=f"pacing_{ver}")
 
         col_sub1, col_sub2 = st.columns(2)
         with col_sub1:
-            app_data["time_and_environment"] = st.text_input("⏱️ 時間線與環境狀態", value=app_data.get("time_and_environment", ""))
+            app_data["time_and_environment"] = st.text_input("⏱️ 時間線與環境狀態", value=app_data.get("time_and_environment", ""), key=f"tae_{ver}")
         with col_sub2:
-            app_data["tone_setting"] = st.text_input("🎭 本章情緒基調", value=app_data.get("tone_setting", ""))
+            app_data["tone_setting"] = st.text_input("🎭 本章情緒基調", value=app_data.get("tone_setting", ""), key=f"ts_{ver}")
 
-        app_data["sensory_details"] = st.text_area("🌫️ 五感描寫重點", value=app_data.get("sensory_details", ""), height=70)
+        app_data["sensory_details"] = st.text_area("🌫️ 五感描寫重點", value=app_data.get("sensory_details", ""), height=70, key=f"sd_{ver}")
 
         col_adv1, col_adv2 = st.columns(2)
         with col_adv1:
-            app_data["scene_conflict"] = st.text_area("⚔️ 本章核心衝突點", value=app_data.get("scene_conflict", ""), height=70)
-            app_data["must_include"] = st.text_area("🔑 必須出現的伏筆/道具", value=app_data.get("must_include", ""), height=70)
+            app_data["scene_conflict"] = st.text_area("⚔️ 本章核心衝突點", value=app_data.get("scene_conflict", ""), height=70, key=f"sc_{ver}")
+            app_data["must_include"] = st.text_area("🔑 必須出現的伏筆/道具", value=app_data.get("must_include", ""), height=70, key=f"mi_{ver}")
         with col_adv2:
-            app_data["scene_turn"] = st.text_area("🔄 本章局勢/認知大翻轉", value=app_data.get("scene_turn", ""), height=70)
-            app_data["reveal_and_mystery"] = st.text_area("🔍 伏筆揭示與新未知懸念", value=app_data.get("reveal_and_mystery", ""), height=70)
+            app_data["scene_turn"] = st.text_area("🔄 本章局勢/認知大翻轉", value=app_data.get("scene_turn", ""), height=70, key=f"st_{ver}")
+            app_data["reveal_and_mystery"] = st.text_area("🔍 伏筆揭示與新未知懸念", value=app_data.get("reveal_and_mystery", ""), height=70, key=f"rm_{ver}")
 
-        app_data["writing_taboos"] = st.text_area("🚫 寫作禁忌", value=app_data.get("writing_taboos", ""), height=70)
+        app_data["writing_taboos"] = st.text_area("🚫 寫作禁忌", value=app_data.get("writing_taboos", ""), height=70, key=f"wt_{ver}")
 
     st.divider()
-    generate_btn = st.button("✨ 開始生成本章小說內文", type="primary", use_container_width=True)
+    generate_btn = st.button("✨ 開始生成本章小說內文", type="primary", use_container_width=True, key=f"gen_btn_{ver}")
 
 # ---------------- Tab 2: 世界觀與地圖庫 ----------------
 with tab_world:
@@ -155,17 +158,17 @@ with tab_world:
     
     col_w1, col_w2 = st.columns(2)
     with col_w1:
-        app_data["book_title"] = st.text_input("全書書名", value=app_data.get("book_title", ""))
+        app_data["book_title"] = st.text_input("全書書名", value=app_data.get("book_title", ""), key=f"bt_{ver}")
     with col_w2:
-        app_data["book_theme"] = st.text_input("題材風格", value=app_data.get("book_theme", ""))
+        app_data["book_theme"] = st.text_input("題材風格", value=app_data.get("book_theme", ""), key=f"bth_{ver}")
     
-    app_data["book_overall_secret"] = st.text_area("🔒 全書終局真相", value=app_data.get("book_overall_secret", ""), height=100)
+    app_data["book_overall_secret"] = st.text_area("🔒 全書終局真相", value=app_data.get("book_overall_secret", ""), height=100, key=f"bos_{ver}")
     
     st.divider()
     col_loc_t, col_loc_a = st.columns([3, 1])
     with col_loc_t: st.subheader("🗺️ 區域與地圖庫")
     with col_loc_a:
-        if st.button("➕ 新增區域"):
+        if st.button("➕ 新增區域", key=f"add_loc_btn_{ver}"):
             new_id = f"loc_{datetime.now().strftime('%M%S%f')}"
             app_data.setdefault("location_list", []).append({
                 "id": new_id, "name": "新區域", "scope": "適用範圍", "visual_style": "", "physics_detail": "", "local_rules": ""
@@ -177,12 +180,12 @@ with tab_world:
         loc = loc_list[loc_idx]
         loc_id = loc.get("id", f"loc_{loc_idx}")
         with st.expander(f"📍 {loc.get('name', '區域')} ({loc.get('scope', '')})", expanded=True):
-            loc['name'] = st.text_input("區域名稱", value=loc.get('name', ''), key=f"loc_n_{loc_id}")
-            loc['scope'] = st.text_input("適用範圍", value=loc.get('scope', ''), key=f"loc_sc_{loc_id}")
-            loc['visual_style'] = st.text_area("🏛️ 視覺與建築特色", value=loc.get('visual_style', ''), key=f"loc_vs_{loc_id}", height=60)
-            loc['physics_detail'] = st.text_area("⚙️ 環境與物理異常", value=loc.get('physics_detail', ''), key=f"loc_pd_{loc_id}", height=60)
-            loc['local_rules'] = st.text_area("🚫 區域專屬禁忌", value=loc.get('local_rules', ''), key=f"loc_lr_{loc_id}", height=60)
-            if st.button("🗑️ 刪除此區域", key=f"loc_d_{loc_id}"):
+            loc['name'] = st.text_input("區域名稱", value=loc.get('name', ''), key=f"loc_n_{loc_id}_{ver}")
+            loc['scope'] = st.text_input("適用範圍", value=loc.get('scope', ''), key=f"loc_sc_{loc_id}_{ver}")
+            loc['visual_style'] = st.text_area("🏛️ 視覺與建築特色", value=loc.get('visual_style', ''), key=f"loc_vs_{loc_id}_{ver}", height=60)
+            loc['physics_detail'] = st.text_area("⚙️ 環境與物理異常", value=loc.get('physics_detail', ''), key=f"loc_pd_{loc_id}_{ver}", height=60)
+            loc['local_rules'] = st.text_area("🚫 區域專屬禁忌", value=loc.get('local_rules', ''), key=f"loc_lr_{loc_id}_{ver}", height=60)
+            if st.button("🗑️ 刪除此區域", key=f"loc_d_{loc_id}_{ver}"):
                 loc_list.pop(loc_idx)
                 st.rerun()
 
@@ -194,7 +197,7 @@ with tab_items:
     col_it_t, col_it_a = st.columns([3, 1])
     with col_it_t: st.subheader("📦 可用道具庫")
     with col_it_a:
-        if st.button("➕ 新增道具"):
+        if st.button("➕ 新增道具", key=f"add_it_btn_{ver}"):
             new_id = f"it_{datetime.now().strftime('%M%S%f')}"
             app_data.setdefault("items_inventory", []).append({"id": new_id, "name": "新道具", "status": "", "owner": ""})
             st.rerun()
@@ -204,10 +207,10 @@ with tab_items:
         item = items_list[it_idx]
         item_id = item.get("id", f"it_{it_idx}")
         with st.expander(f"📦 {item.get('name', '道具')} ({item.get('owner', '')})", expanded=True):
-            item['name'] = st.text_input("名稱", value=item.get('name', ''), key=f"it_n_{item_id}")
-            item['owner'] = st.text_input("持有者", value=item.get('owner', ''), key=f"it_o_{item_id}")
-            item['status'] = st.text_input("狀態", value=item.get('status', ''), key=f"it_s_{item_id}")
-            if st.button("🗑️ 刪除此道具", key=f"it_d_{item_id}"):
+            item['name'] = st.text_input("名稱", value=item.get('name', ''), key=f"it_n_{item_id}_{ver}")
+            item['owner'] = st.text_input("持有者", value=item.get('owner', ''), key=f"it_o_{item_id}_{ver}")
+            item['status'] = st.text_input("狀態", value=item.get('status', ''), key=f"it_s_{item_id}_{ver}")
+            if st.button("🗑️ 刪除此道具", key=f"it_d_{item_id}_{ver}"):
                 items_list.pop(it_idx)
                 st.rerun()
 
@@ -217,7 +220,7 @@ with tab_items:
     col_r_t, col_r_a = st.columns([3, 1])
     with col_r_t: st.subheader("✅ 已驗證鐵律")
     with col_r_a:
-        if st.button("➕ 新增鐵律"):
+        if st.button("➕ 新增鐵律", key=f"add_r_btn_{ver}"):
             new_id = f"r_{datetime.now().strftime('%M%S%f')}"
             app_data.setdefault("confirmed_rules_list", []).append({"id": new_id, "content": ""})
             st.rerun()
@@ -227,16 +230,16 @@ with tab_items:
         r = rules_list[r_idx]
         r_id = r.get("id", f"r_{r_idx}")
         col_rx, col_rd = st.columns([5, 1])
-        with col_rx: r['content'] = st.text_input(f"鐵律 {r_idx+1}", value=r.get('content', ''), key=f"r_val_{r_id}", label_visibility="collapsed")
+        with col_rx: r['content'] = st.text_input(f"鐵律 {r_idx+1}", value=r.get('content', ''), key=f"r_val_{r_id}_{ver}", label_visibility="collapsed")
         with col_rd:
-            if st.button("🗑️", key=f"r_del_{r_id}"):
+            if st.button("🗑️", key=f"r_del_{r_id}_{ver}"):
                 rules_list.pop(r_idx)
                 st.rerun()
 
     col_cl_t, col_cl_a = st.columns([3, 1])
     with col_cl_t: st.subheader("🔍 關鍵線索庫")
     with col_cl_a:
-        if st.button("➕ 新增線索"):
+        if st.button("➕ 新增線索", key=f"add_cl_btn_{ver}"):
             new_id = f"cl_{datetime.now().strftime('%M%S%f')}"
             app_data.setdefault("clues_list", []).append({"id": new_id, "content": ""})
             st.rerun()
@@ -246,9 +249,9 @@ with tab_items:
         cl = clues_list[cl_idx]
         cl_id = cl.get("id", f"cl_{cl_idx}")
         col_clx, col_cld = st.columns([5, 1])
-        with col_clx: cl['content'] = st.text_input(f"線索 {cl_idx+1}", value=cl.get('content', ''), key=f"cl_val_{cl_id}", label_visibility="collapsed")
+        with col_clx: cl['content'] = st.text_input(f"線索 {cl_idx+1}", value=cl.get('content', ''), key=f"cl_val_{cl_id}_{ver}", label_visibility="collapsed")
         with col_cld:
-            if st.button("🗑️", key=f"cl_del_{cl_id}"):
+            if st.button("🗑️", key=f"cl_del_{cl_id}_{ver}"):
                 clues_list.pop(cl_idx)
                 st.rerun()
 
@@ -257,7 +260,7 @@ with tab_chars:
     col_char_t, col_char_a = st.columns([3, 1])
     with col_char_t: st.subheader("👥 角色卡片庫")
     with col_char_a:
-        if st.button("➕ 新增角色"):
+        if st.button("➕ 新增角色", key=f"add_c_btn_{ver}"):
             new_c_id = f"c_{datetime.now().strftime('%M%S%f')}"
             app_data.setdefault("character_list", []).append({
                 "id": new_c_id, "name": "新角色", "category": "當前在場/主要角色", 
@@ -280,18 +283,18 @@ with tab_chars:
         
         with target_tab:
             with st.expander(f"👤 {char.get('name', '角色')} ({char.get('faction', '無陣營')})", expanded=True):
-                char['name'] = st.text_input("名稱", value=char.get('name', ''), key=f"c_n_{c_id}")
-                char['category'] = st.selectbox("📌 歸類分頁", ["當前在場/主要角色", "場外/通訊角色", "離場/變異/歷史角色"], index=["當前在場/主要角色", "場外/通訊角色", "離場/變異/歷史角色"].index(c_cat) if c_cat in ["當前在場/主要角色", "場外/通訊角色", "離場/變異/歷史角色"] else 0, key=f"c_cat_{c_id}")
-                char['faction'] = st.text_input("⚔️ 勢力/陣營", value=char.get('faction', ''), key=f"c_f_{c_id}")
-                char['public_relation'] = st.text_input("🤝 表面關係", value=char.get('public_relation', ''), key=f"c_pr_{c_id}")
-                char['hidden_motive'] = st.text_input("🔒 隱藏動機/暗流", value=char.get('hidden_motive', ''), key=f"c_hm_{c_id}")
-                char['summary'] = st.text_input("簡介", value=char.get('summary', ''), key=f"c_s_{c_id}")
-                char['personality'] = st.text_input("性格", value=char.get('personality', ''), key=f"c_p_{c_id}")
-                char['status'] = st.text_input("🩸 生理狀態", value=char.get('status', ''), key=f"c_st_{c_id}")
-                char['sanity'] = st.text_input("🧠 理智度 (SAN值)", value=char.get('sanity', '100%'), key=f"c_sn_{c_id}")
-                char['speech_style'] = st.text_input("口吻風格", value=char.get('speech_style', ''), key=f"c_sp_{c_id}")
-                char['dialogue_example'] = st.text_input("💬 代表台詞", value=char.get('dialogue_example', ''), key=f"c_dg_{c_id}")
-                if st.button("🗑️ 刪除角色", key=f"c_dl_{c_id}"):
+                char['name'] = st.text_input("名稱", value=char.get('name', ''), key=f"c_n_{c_id}_{ver}")
+                char['category'] = st.selectbox("📌 歸類分頁", ["當前在場/主要角色", "場外/通訊角色", "離場/變異/歷史角色"], index=["當前在場/主要角色", "場外/通訊角色", "離場/變異/歷史角色"].index(c_cat) if c_cat in ["當前在場/主要角色", "場外/通訊角色", "離場/變異/歷史角色"] else 0, key=f"c_cat_{c_id}_{ver}")
+                char['faction'] = st.text_input("⚔️ 勢力/陣營", value=char.get('faction', ''), key=f"c_f_{c_id}_{ver}")
+                char['public_relation'] = st.text_input("🤝 表面關係", value=char.get('public_relation', ''), key=f"c_pr_{c_id}_{ver}")
+                char['hidden_motive'] = st.text_input("🔒 隱藏動機/暗流", value=char.get('hidden_motive', ''), key=f"c_hm_{c_id}_{ver}")
+                char['summary'] = st.text_input("簡介", value=char.get('summary', ''), key=f"c_s_{c_id}_{ver}")
+                char['personality'] = st.text_input("性格", value=char.get('personality', ''), key=f"c_p_{c_id}_{ver}")
+                char['status'] = st.text_input("🩸 生理狀態", value=char.get('status', ''), key=f"c_st_{c_id}_{ver}")
+                char['sanity'] = st.text_input("🧠 理智度 (SAN值)", value=char.get('sanity', '100%'), key=f"c_sn_{c_id}_{ver}")
+                char['speech_style'] = st.text_input("口吻風格", value=char.get('speech_style', ''), key=f"c_sp_{c_id}_{ver}")
+                char['dialogue_example'] = st.text_input("💬 代表台詞", value=char.get('dialogue_example', ''), key=f"c_dg_{c_id}_{ver}")
+                if st.button("🗑️ 刪除角色", key=f"c_dl_{c_id}_{ver}"):
                     char_list.pop(c_idx)
                     st.rerun()
 
@@ -301,19 +304,21 @@ with tab_system:
     
     st.markdown("### 🔑 API Key 設定")
     env_api_key = os.environ.get("GEMINI_API_KEY", "")
-    api_key_input = st.text_input("輸入 Gemini API Key", value=env_api_key, type="password")
+    api_key_input = st.text_input("輸入 Gemini API Key", value=env_api_key, type="password", key=f"api_{ver}")
     active_api_key = api_key_input if api_key_input else env_api_key
     
     st.divider()
     st.markdown("### 📤 匯入歷史設定檔 (.json)")
-    uploaded_file = st.file_uploader("選擇上傳 JSON 存檔", type=["json", "txt"])
+    uploaded_file = st.file_uploader("選擇上傳 JSON 存檔", type=["json", "txt"], key=f"uploader_{ver}")
 
+    # 上傳時強制遞增 upload_ver，刷新所有元件 Key，確保完美替換
     if uploaded_file is not None and uploaded_file.name != st.session_state["last_uploaded_filename"]:
         try:
             loaded_data = json.load(uploaded_file)
             st.session_state["app_data"] = loaded_data
             st.session_state["last_uploaded_filename"] = uploaded_file.name
-            st.success("✅ 成功載入歷史紀錄！主頁面資料已全數同步！")
+            st.session_state["upload_ver"] += 1
+            st.success("✅ 成功載入歷史紀錄！畫面與輸入框已強制同步更新！")
             st.rerun()
         except Exception as e:
             st.error(f"檔案格式錯誤：{str(e)}")
@@ -329,7 +334,8 @@ with tab_system:
         data=json_string,
         file_name=filename,
         mime="application/json",
-        use_container_width=True
+        use_container_width=True,
+        key=f"dl_btn_{ver}"
     )
 
 # ================= 自動構建 Prompt 文字 =================
@@ -420,13 +426,13 @@ if generate_btn:
         try:
             genai.configure(api_key=active_api_key)
             
-            # ⚡ 優先採用標準 API 上的 gemini-1.5-flash，若無則降級回退至 flash-latest，100% 能調通！
-            target_model = "gemini-3.5-flash"
+            # 鎖定 Gemini 官方標準最速 flash 模型
+            target_model = "gemini-flash-latest"
             try:
                 model = genai.GenerativeModel(target_model)
-                st.caption(f"⚡ 成功連線高速 Flash 模型：`{target_model}`")
+                st.caption(f"⚡ 成功連線高頻極速模型：`{target_model}`")
             except Exception:
-                target_model = "gemini-flash-latest"
+                target_model = "gemini-2.0-flash"
                 model = genai.GenerativeModel(target_model)
                 st.caption(f"⚡ 自動切換連線模型：`{target_model}`")
             
@@ -434,7 +440,7 @@ if generate_btn:
             full_text = ""
             text_buffer = ""
             
-            # 🚀 平滑緩衝區渲染：每 20 個字刷新一次 UI，畫面順暢不卡頓
+            # 平滑緩衝區渲染：每 20 個字刷新一次，徹底消除介面卡頓
             response = model.generate_content(prompt, stream=True)
             for chunk in response:
                 if chunk.text:
@@ -474,6 +480,6 @@ if app_data.get("generated_content"):
         </script>
     """
     components.html(copy_button_html, height=60)
-    st.text_area("📋 複製專用純文字框", value=app_data["generated_content"], height=300)
+    st.text_area("📋 複製專用純文字框", value=app_data["generated_content"], height=300, key=f"res_ta_{ver}")
     st.markdown("---")
     st.write(app_data["generated_content"])
