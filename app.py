@@ -95,6 +95,8 @@ if "upload_ver" not in st.session_state:
     st.session_state["upload_ver"] = 0
 if "just_generated" not in st.session_state:
     st.session_state["just_generated"] = False
+if "gen_time_key" not in st.session_state:
+    st.session_state["gen_time_key"] = "initial"
 
 app_data = st.session_state["app_data"]
 ver = st.session_state["upload_ver"]
@@ -179,7 +181,7 @@ with tab_main:
         app_data["writing_taboos"] = st.text_area("🚫 寫作禁忌", value=app_data.get("writing_taboos", ""), height=150, key=f"wt_{ver}")
 
     st.divider()
-    generate_btn = st.button("✨ 開始生成本章小說內文", type="primary", use_container_width=True, key=f"gen_btn_{ver}")
+    generate_btn = st.button("✨ 開始生成精緻小說內文", type="primary", use_container_width=True, key=f"gen_btn_{ver}")
 
     if st.session_state["just_generated"]:
         st.success("🎉 最新一章小說生成完成！已依據設定完成伏筆與內文同步！")
@@ -187,9 +189,16 @@ with tab_main:
 
     if app_data.get("generated_content"):
         st.markdown("---")
-        st.subheader("📝 本章最新生成成果：")
+        st.subheader("📝 最新生成成果：")
         
-        st.text_area("📋 複製與編輯專用文字框 (已自動分段與斷行)", value=app_data["generated_content"], height=600, key=f"res_ta_live_{ver}")
+        # 🔑 動態 key 徹底突破快取封鎖，強制刷新為最新小說內文！
+        current_gen_key = st.session_state["gen_time_key"]
+        st.text_area(
+            "📋 複製與編輯專用文字方塊 (已自動架構與斷行)", 
+            value=app_data["generated_content"], 
+            height=600, 
+            key=f"res_ta_{current_gen_key}_{ver}"
+        )
         
         st.markdown("---")
         st.markdown("### 📖 全章閱讀預覽 Mode：")
@@ -218,7 +227,6 @@ with tab_foreshadow:
     if not f_list:
         st.info("💡 目前尚無紀錄中的伏筆。按下生成小說按鈕時，AI 會依據你的設定自動記錄新伏筆至這裡！")
     else:
-        # 🔑 三分頁清晰展示：待解答 / 推演中 / 已回收
         tab_f1, tab_f2, tab_f3 = st.tabs(["📌 待解答/埋下中", "🔄 揭露中/推演中", "✅ 已完全回收"])
         
         delete_target_id = None
@@ -228,7 +236,6 @@ with tab_foreshadow:
             f_id = f_item.get("id", f"f_{f_idx}")
             status_str = f_item.get("status", "待解答")
             
-            # 依據狀態分配至對應 Tab
             if "回收" in status_str or "已解答" in status_str or "完成" in status_str:
                 target_tab = tab_f3
             elif "揭露" in status_str or "推演" in status_str or "部分" in status_str:
@@ -243,10 +250,8 @@ with tab_foreshadow:
                 with st.expander(f"🔮 伏筆：{title_preview} 【{status_str}】", expanded=True):
                     f_item['content'] = st.text_input("📍 伏筆表面現象/描寫細節", value=f_item.get('content', ''), key=f"fc_{f_id}_{ver}")
                     
-                    # 提供選單/輸入框方便切換狀態
                     col_fs1, col_fs2 = st.columns([1, 2])
                     with col_fs1:
-                        # 自動抓取目前的下拉索引
                         cur_cat_idx = 0
                         if "揭露" in status_str or "推演" in status_str: cur_cat_idx = 1
                         elif "回收" in status_str or "已解答" in status_str: cur_cat_idx = 2
@@ -255,7 +260,6 @@ with tab_foreshadow:
                     with col_fs2:
                         f_item['status'] = st.text_input("⏱️ 詳細狀態/預計解答章節", value=f_item.get('status', selected_cat), key=f"fs_{f_id}_{ver}")
                         
-                        # 如果選單變更，自動更新 status 的頭銜
                         if selected_cat != status_options[cur_cat_idx] and selected_cat not in f_item['status']:
                             f_item['status'] = f"{selected_cat} ({f_item['status']})"
 
@@ -486,7 +490,6 @@ foreshadowing_context = "".join([
     for f in app_data.get("foreshadowing_list", [])
 ])
 
-# 🎯 動態構建方案 A+C 與【防重鎖】的伏筆 Prompt 指令
 enable_f = app_data.get("enable_new_foreshadow", True)
 f_count = int(app_data.get("new_foreshadow_count", 1))
 f_blacklist = app_data.get("foreshadow_black_list", "")
@@ -503,7 +506,7 @@ if enable_f and f_count > 0:
 else:
     foreshadow_instruction = "本章專注於推進劇情與回收舊伏筆，嚴禁埋下任何新伏筆！請務必將 new_foreshadowing 欄位回傳空陣列 []。"
 
-# ================= 直連 Gemini API 生成邏輯 (正確模型順序 + 防重複伏筆) =================
+# ================= 直連 Gemini API 生成邏輯 (Key 自動升級機制) =================
 if generate_btn:
     if not active_api_key:
         st.error("❌ 找不到 Gemini API Key！請先在『💾 API 設定與存檔管理』頁面填入 Key。")
@@ -591,7 +594,6 @@ if generate_btn:
                 "required": ["novel_text", "new_foreshadowing"]
             }
 
-            # 🎯 嚴格鎖定指定模型名稱：優先 gemini-flash-latest，備選 gemini-3.5-flash
             target_model = "gemini-flash-latest"
             try:
                 model = genai.GenerativeModel(target_model)
@@ -618,7 +620,7 @@ if generate_btn:
             app_data["generated_content"] = novel_text
             st.session_state["app_data"]["generated_content"] = novel_text
 
-            # 2. 僅在允許新增伏筆時，自動將 AI 捕捉到的新伏筆添加進伏筆庫
+            # 2. 自動將 AI 捕捉到的新伏筆添加進伏筆庫
             if enable_f and f_count > 0:
                 for nf in new_foreshadows:
                     if nf.get("content"):
@@ -631,6 +633,8 @@ if generate_btn:
                         })
 
             st.session_state["just_generated"] = True
+            # 🔑 每次生成更新時間戳記 Key，徹底毀滅快取舊資料！
+            st.session_state["gen_time_key"] = datetime.now().strftime('%M%S%f')
             st.rerun()
 
         except Exception as e:
