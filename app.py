@@ -3,7 +3,6 @@ import json
 import os
 import google.generativeai as genai
 from datetime import datetime
-import streamlit.components.v1 as components
 
 # 頁面基本設定
 st.set_page_config(page_title="專業小說家 AI 寫作工作站", page_icon="✍️", layout="wide")
@@ -85,6 +84,8 @@ if "last_uploaded_filename" not in st.session_state:
     st.session_state["last_uploaded_filename"] = None
 if "upload_ver" not in st.session_state:
     st.session_state["upload_ver"] = 0
+if "just_generated" not in st.session_state:
+    st.session_state["just_generated"] = False
 
 app_data = st.session_state["app_data"]
 ver = st.session_state["upload_ver"]
@@ -154,32 +155,20 @@ with tab_main:
     st.divider()
     generate_btn = st.button("✨ 開始生成本章小說內文 (AI 自動捕捉與記錄伏筆)", type="primary", use_container_width=True, key=f"gen_btn_{ver}")
 
-    # 展示最新一次生成的內文與複製按鈕
+    # 剛好生成完畢時，跳出成功提示提示
+    if st.session_state["just_generated"]:
+        st.success("🎉 最新一章小說生成完成！AI 捕捉到的全新伏筆已自動同步至『🔮 長線伏筆』分頁！")
+        st.session_state["just_generated"] = False
+
+    # 展示最新生成的內文與純文字複製框
     if app_data.get("generated_content"):
         st.markdown("---")
         st.subheader("📝 本章最新生成成果：")
         
-        escaped_text = json.dumps(app_data["generated_content"])
-        copy_button_html = f"""
-            <button id="copyBtn" style="
-                background-color: #FF4B4B; color: white; border: none; padding: 10px 20px;
-                font-size: 16px; font-weight: bold; border-radius: 8px; cursor: pointer; width: 100%;
-            ">📋 一鍵複製最新全章內文至剪貼簿</button>
-            <script>
-                document.getElementById('copyBtn').addEventListener('click', function() {{
-                    var text = {escaped_text};
-                    navigator.clipboard.writeText(text).then(function() {{
-                        alert('✅ 已成功將最新小說全章複製到剪貼簿！');
-                    }}, function(err) {{
-                        alert('❌ 複製失敗，請使用純文字框複製。');
-                    }});
-                }});
-            </script>
-        """
-        components.html(copy_button_html, height=60)
-        st.text_area("📋 複製專用純文字框 (最新內容)", value=app_data["generated_content"], height=350, key=f"res_ta_live_{ver}")
-        st.markdown("---")
-        st.write(app_data["generated_content"])
+        st.caption("📋 請直接點擊下方文字框右上角的『複製』圖示，即可一鍵複製全文：")
+        st.code(app_data["generated_content"], language="text")
+        
+        st.text_area("📋 複製專用純文字框 (備用)", value=app_data["generated_content"], height=300, key=f"res_ta_live_{ver}")
 
 # ---------------- Tab 2: 長線伏筆與案件牆 ----------------
 with tab_foreshadow:
@@ -440,7 +429,7 @@ foreshadowing_context = "".join([
     for f in app_data.get("foreshadowing_list", [])
 ])
 
-# ================= 直連 Gemini API 生成邏輯 (含即時刷新伏筆機制) =================
+# ================= 直連 Gemini API 生成邏輯 =================
 if generate_btn:
     if not active_api_key:
         st.error("❌ 找不到 Gemini API Key！請先在『💾 API 設定與存檔管理』頁面填入 Key。")
@@ -515,7 +504,7 @@ if generate_btn:
             try:
                 model = genai.GenerativeModel(target_model)
             except Exception:
-                target_model = "gemini-2.0-flash"
+                target_model = "gemini-3.5-flash"
                 model = genai.GenerativeModel(target_model)
             
             with st.spinner("✨ 正在撰寫小說內文並自動抓取伏筆中..."):
@@ -533,7 +522,6 @@ if generate_btn:
             st.session_state["app_data"]["generated_content"] = novel_text
 
             # 2. 自動將 AI 捕捉到的新伏筆添加進伏筆庫
-            added_count = 0
             for nf in new_foreshadows:
                 if nf.get("content"):
                     new_f_id = f"f_{datetime.now().strftime('%M%S%f')}"
@@ -543,9 +531,9 @@ if generate_btn:
                         "status": nf.get("status", "待解答"),
                         "truth": nf.get("truth", "")
                     })
-                    added_count += 1
 
-            # ⚡ 關鍵修復：呼叫 st.rerun() 讓畫面重新渲染，上方的「伏筆追蹤清單」就會立刻刷新出這 1 支新伏筆！
+            # ⚡ 標記生成完成鎖，並觸發安全的 rerun，徹底解決 React DOM 崩潰問題！
+            st.session_state["just_generated"] = True
             st.rerun()
 
         except Exception as e:
