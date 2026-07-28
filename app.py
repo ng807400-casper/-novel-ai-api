@@ -80,7 +80,10 @@ default_data = {
   "must_include": "",
   "chapter_outline": "",
   "writing_taboos": "• 禁止任何角色開口發聲說話\n• 寫作禁止直接稱呼克系",
-  "generated_content": ""
+  "generated_content": "",
+  "enable_new_foreshadow": True,
+  "new_foreshadow_count": 1,
+  "foreshadow_black_list": "• 禁止重複出現指針逆轉的懷錶/鐘錶類道具\n• 禁止重複出現吧台下的舊報紙/傳單線索\n• 禁止重複出現神秘簡訊突然警告/預警\n• 禁止重複出現牆壁/鏡面上的血字提示"
 }
 
 # 全域 Session State 數據與版本號綁定
@@ -122,6 +125,23 @@ with tab_main:
     app_data["chapter_outline"] = st.text_area("🎯 本章具體大綱與情節推進 (主要寫作指令)", value=app_data.get("chapter_outline", ""), height=120, key=f"co_{ver}")
 
     with st.expander("⚙️ 點此展開【本章進階微調參數】", expanded=False):
+        # 🎯 伏筆策略與防重複黑名單設定
+        st.markdown("#### 🔮 伏筆發想策略與【防重複黑名單】")
+        col_f_opt1, col_f_opt2 = st.columns([2, 1])
+        with col_f_opt1:
+            app_data["enable_new_foreshadow"] = st.checkbox("☑️ 允許 AI 在本章創作時埋下新伏筆", value=app_data.get("enable_new_foreshadow", True), key=f"enf_{ver}")
+        with col_f_opt2:
+            app_data["new_foreshadow_count"] = st.number_input("🎯 預期新增伏筆數量", value=int(app_data.get("new_foreshadow_count", 1)), min_value=0, max_value=5, step=1, key=f"nfc_{ver}")
+
+        app_data["foreshadow_black_list"] = st.text_area(
+            "🚫 嚴禁重複出現的伏筆類型 / 老套路黑名單 (避免出戲)",
+            value=app_data.get("foreshadow_black_list", "• 禁止重複出現懷錶/舊報紙/簡訊等老套路"),
+            height=100,
+            key=f"fbl_{ver}"
+        )
+
+        st.divider()
+
         char_names_list = [c.get('name', '蘇默') for c in app_data.get("character_list", [])]
         
         col_env1, col_env2, col_env3 = st.columns(3)
@@ -159,24 +179,23 @@ with tab_main:
         app_data["writing_taboos"] = st.text_area("🚫 寫作禁忌", value=app_data.get("writing_taboos", ""), height=150, key=f"wt_{ver}")
 
     st.divider()
-    generate_btn = st.button("✨ 開始生成本章小說內文 (AI 自動捕捉與記錄伏筆)", type="primary", use_container_width=True, key=f"gen_btn_{ver}")
+    generate_btn = st.button("✨ 開始生成本章小說內文", type="primary", use_container_width=True, key=f"gen_btn_{ver}")
 
     if st.session_state["just_generated"]:
-        st.success("🎉 最新一章小說生成完成！AI 捕捉到的全新伏筆已自動同步至『🔮 長線伏筆』分頁！")
+        st.success("🎉 最新一章小說生成完成！已依據設定完成伏筆與內文同步！")
         st.session_state["just_generated"] = False
 
     if app_data.get("generated_content"):
         st.markdown("---")
         st.subheader("📝 本章最新生成成果：")
         
-        # 加高純文字框 (600px)，方便複製與對照
         st.text_area("📋 複製與編輯專用文字框 (已自動分段與斷行)", value=app_data["generated_content"], height=600, key=f"res_ta_live_{ver}")
         
         st.markdown("---")
         st.markdown("### 📖 全章閱讀預覽 Mode：")
         st.markdown(app_data["generated_content"])
 
-# ---------------- Tab 2: 長線伏筆與案件牆 ----------------
+# ---------------- Tab 2: 長線伏筆與案件牆 (優化分類UI與動態歸頁) ----------------
 with tab_foreshadow:
     st.subheader("🔮 長線伏筆與謎團策劃庫")
     st.caption("💡 這裡記錄了所有 AI 寫作時自動捕捉或由你手動創建的伏筆。AI 生成新章節時會自動讀取並推演這些伏筆！")
@@ -189,7 +208,7 @@ with tab_foreshadow:
             app_data.setdefault("foreshadowing_list", []).append({
                 "id": new_f_id,
                 "content": "新伏筆表面現象...",
-                "status": "待解答 (預計第X章解答)",
+                "status": "待解答 (預計第X章)",
                 "truth": "背後隱藏的真實真相..."
             })
             st.rerun()
@@ -197,23 +216,53 @@ with tab_foreshadow:
     f_list = app_data.get("foreshadowing_list", [])
     
     if not f_list:
-        st.info("💡 目前尚無紀錄中的伏筆。按下生成小說按鈕時，AI 會自動將編寫中種下的新伏筆記錄到這裡！")
+        st.info("💡 目前尚無紀錄中的伏筆。按下生成小說按鈕時，AI 會依據你的設定自動記錄新伏筆至這裡！")
     else:
+        # 🔑 三分頁清晰展示：待解答 / 推演中 / 已回收
+        tab_f1, tab_f2, tab_f3 = st.tabs(["📌 待解答/埋下中", "🔄 揭露中/推演中", "✅ 已完全回收"])
+        
         delete_target_id = None
+        status_options = ["待解答", "揭露中/推演中", "已完全回收"]
         
         for f_idx, f_item in enumerate(f_list):
             f_id = f_item.get("id", f"f_{f_idx}")
             status_str = f_item.get("status", "待解答")
-            title_preview = f_item.get('content', '未命名伏筆')
-            if len(title_preview) > 20: title_preview = title_preview[:20] + "..."
             
-            with st.expander(f"🔮 伏筆：{title_preview} 【{status_str}】", expanded=True):
-                f_item['content'] = st.text_input("📍 伏筆表面現象/描寫細節", value=f_item.get('content', ''), key=f"fc_{f_id}_{ver}")
-                f_item['status'] = st.text_input("⏱️ 當前狀態/預計解答章節", value=f_item.get('status', ''), key=f"fs_{f_id}_{ver}")
-                f_item['truth'] = st.text_area("🔒 隱藏真相 (AI 寫作會參考，暫不對讀者直接公開)", value=f_item.get('truth', ''), height=80, key=f"ft_{f_id}_{ver}")
+            # 依據狀態分配至對應 Tab
+            if "回收" in status_str or "已解答" in status_str or "完成" in status_str:
+                target_tab = tab_f3
+            elif "揭露" in status_str or "推演" in status_str or "部分" in status_str:
+                target_tab = tab_f2
+            else:
+                target_tab = tab_f1
+
+            with target_tab:
+                title_preview = f_item.get('content', '未命名伏筆')
+                if len(title_preview) > 25: title_preview = title_preview[:25] + "..."
                 
-                if st.button("🗑️ 刪除此伏筆", key=f"fd_{f_id}_{ver}"):
-                    delete_target_id = f_id
+                with st.expander(f"🔮 伏筆：{title_preview} 【{status_str}】", expanded=True):
+                    f_item['content'] = st.text_input("📍 伏筆表面現象/描寫細節", value=f_item.get('content', ''), key=f"fc_{f_id}_{ver}")
+                    
+                    # 提供選單/輸入框方便切換狀態
+                    col_fs1, col_fs2 = st.columns([1, 2])
+                    with col_fs1:
+                        # 自動抓取目前的下拉索引
+                        cur_cat_idx = 0
+                        if "揭露" in status_str or "推演" in status_str: cur_cat_idx = 1
+                        elif "回收" in status_str or "已解答" in status_str: cur_cat_idx = 2
+                        
+                        selected_cat = st.selectbox("📌 歸類分頁", status_options, index=cur_cat_idx, key=f"fcat_{f_id}_{ver}")
+                    with col_fs2:
+                        f_item['status'] = st.text_input("⏱️ 詳細狀態/預計解答章節", value=f_item.get('status', selected_cat), key=f"fs_{f_id}_{ver}")
+                        
+                        # 如果選單變更，自動更新 status 的頭銜
+                        if selected_cat != status_options[cur_cat_idx] and selected_cat not in f_item['status']:
+                            f_item['status'] = f"{selected_cat} ({f_item['status']})"
+
+                    f_item['truth'] = st.text_area("🔒 隱藏真相 (AI 寫作會參考，暫不對讀者直接公開)", value=f_item.get('truth', ''), height=80, key=f"ft_{f_id}_{ver}")
+                    
+                    if st.button("🗑️ 刪除此伏筆", key=f"fd_{f_id}_{ver}"):
+                        delete_target_id = f_id
 
         if delete_target_id:
             app_data["foreshadowing_list"] = [item for item in app_data["foreshadowing_list"] if item.get("id") != delete_target_id]
@@ -437,7 +486,24 @@ foreshadowing_context = "".join([
     for f in app_data.get("foreshadowing_list", [])
 ])
 
-# ================= 直連 Gemini API 生成邏輯 (強化斷行與自然段落) =================
+# 🎯 動態構建方案 A+C 與【防重鎖】的伏筆 Prompt 指令
+enable_f = app_data.get("enable_new_foreshadow", True)
+f_count = int(app_data.get("new_foreshadow_count", 1))
+f_blacklist = app_data.get("foreshadow_black_list", "")
+
+if enable_f and f_count > 0:
+    foreshadow_instruction = f"""
+請撰寫本章內文，同時在 new_foreshadowing 中精準列出你在此章寫作時順手埋下的 {f_count} 個全新伏筆細節（包含表面現象、預計解答章節、隱藏真相）。
+
+【🔒 伏筆防重複極嚴格指令】
+1. 請審視上方【目前已記錄的長線伏筆】，絕對禁止創造與既有伏筆同質化、類似道具或重複現象的新伏筆！
+2. 必須嚴格避開以下【黑名單套路】：
+{f_blacklist}
+"""
+else:
+    foreshadow_instruction = "本章專注於推進劇情與回收舊伏筆，嚴禁埋下任何新伏筆！請務必將 new_foreshadowing 欄位回傳空陣列 []。"
+
+# ================= 直連 Gemini API 生成邏輯 (正確模型順序 + 防重複伏筆) =================
 if generate_btn:
     if not active_api_key:
         st.error("❌ 找不到 Gemini API Key！請先在『💾 API 設定與存檔管理』頁面填入 Key。")
@@ -459,7 +525,7 @@ if generate_btn:
 """
 
         prompt = f"""
-你是一位頂級的懸疑 / 克蘇魯 / 規則怪談小說作家。請根據以下完整的全書世界觀、區域設定與本章微調指令，為我撰寫小說最新一章的純內文，並自動捕捉你在此章寫作時順手埋下的 1~2 個新伏筆。
+你是一位頂級的懸疑 / 克蘇魯 / 規則怪談小說作家。請根據以下完整的全書世界觀、區域設定與本章微調指令，為我撰寫小說最新一章的純內文。
 
 【全書背景】
 • 書名：{app_data.get('book_title')} ({app_data.get('book_theme')})
@@ -474,7 +540,7 @@ if generate_btn:
 • 當前可用道具庫：
 {items_text}
 
-【目前已記錄的長線伏筆與懸念】
+【目前已記錄的長線伏筆與歷史懸念 (嚴禁產生同類型伏筆)】
 {foreshadowing_context if foreshadowing_context else "目前暫無紀錄中的伏筆。"}
 
 【登場角色與複雜關係鏈】
@@ -498,8 +564,8 @@ if generate_btn:
 【極重要排版規範】
 撰寫 novel_text 時，請務必按照中文出版小說格式，每段之間使用雙換行 (\\n\\n) 進行清晰分段，切勿將文字擠在同一行或單長段落中！
 
-【關鍵任務】
-請撰寫本章內文，同時在 new_foreshadowing 中列出你本章順手埋下的新伏筆細節（表面現象、預計解答章節、隱藏真相）。
+【關鍵伏筆任務與防重複要求】
+{foreshadow_instruction}
 """
 
         try:
@@ -525,6 +591,7 @@ if generate_btn:
                 "required": ["novel_text", "new_foreshadowing"]
             }
 
+            # 🎯 嚴格鎖定指定模型名稱：優先 gemini-flash-latest，備選 gemini-3.5-flash
             target_model = "gemini-flash-latest"
             try:
                 model = genai.GenerativeModel(target_model)
@@ -534,7 +601,7 @@ if generate_btn:
                 model = genai.GenerativeModel(target_model)
                 st.caption(f"⚡ 自動切換連線模型：`{target_model}`")
             
-            with st.spinner("✨ 正在撰寫小說內文並強制捕捉伏筆中..."):
+            with st.spinner("✨ 正在撰寫小說內文並比對歷史伏筆去重中..."):
                 response = model.generate_content(
                     prompt,
                     generation_config={
@@ -551,16 +618,17 @@ if generate_btn:
             app_data["generated_content"] = novel_text
             st.session_state["app_data"]["generated_content"] = novel_text
 
-            # 2. 自動將 AI 捕捉到的新伏筆添加進伏筆庫
-            for nf in new_foreshadows:
-                if nf.get("content"):
-                    new_f_id = f"f_{datetime.now().strftime('%M%S%f')}"
-                    app_data.setdefault("foreshadowing_list", []).append({
-                        "id": new_f_id,
-                        "content": nf.get("content", ""),
-                        "status": nf.get("status", "待解答"),
-                        "truth": nf.get("truth", "")
-                    })
+            # 2. 僅在允許新增伏筆時，自動將 AI 捕捉到的新伏筆添加進伏筆庫
+            if enable_f and f_count > 0:
+                for nf in new_foreshadows:
+                    if nf.get("content"):
+                        new_f_id = f"f_{datetime.now().strftime('%M%S%f')}"
+                        app_data.setdefault("foreshadowing_list", []).append({
+                            "id": new_f_id,
+                            "content": nf.get("content", ""),
+                            "status": nf.get("status", "待解答"),
+                            "truth": nf.get("truth", "")
+                        })
 
             st.session_state["just_generated"] = True
             st.rerun()
