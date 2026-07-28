@@ -311,7 +311,6 @@ with tab_system:
     st.markdown("### 📤 匯入歷史設定檔 (.json)")
     uploaded_file = st.file_uploader("選擇上傳 JSON 存檔", type=["json", "txt"], key=f"uploader_{ver}")
 
-    # 上傳時強制遞增 upload_ver，刷新所有元件 Key，確保完美替換
     if uploaded_file is not None and uploaded_file.name != st.session_state["last_uploaded_filename"]:
         try:
             loaded_data = json.load(uploaded_file)
@@ -359,7 +358,7 @@ updated_characters_text = "".join([
     for c in app_data.get("character_list", [])
 ])
 
-# ================= 直連 Gemini API 生成邏輯 (鎖定 Flash 模型) =================
+# ================= 直連 Gemini API 生成邏輯 (平滑渲染與複製完全同步) =================
 if generate_btn:
     if not active_api_key:
         st.error("❌ 找不到 Gemini API Key！請先在『💾 API 設定與存檔管理』頁面填入 Key。")
@@ -420,13 +419,12 @@ if generate_btn:
 【寫作與格式極嚴格要求】
 1. **直接輸出純小說內文**，不要帶有任何開場白、結語、分析文字或系統日誌標籤。
 2. 保持極度壓抑、嚴密符合物理消能與規則怪談的氣氛。
-3. 嚴格遵循「寫作禁忌」，特別是絕對不允許角色開口發聲說話。
+3. 嚴格遵循「寫作禁忌」。
 """
 
         try:
             genai.configure(api_key=active_api_key)
             
-            # 鎖定 Gemini 官方標準最速 flash 模型
             target_model = "gemini-flash-latest"
             try:
                 model = genai.GenerativeModel(target_model)
@@ -440,7 +438,7 @@ if generate_btn:
             full_text = ""
             text_buffer = ""
             
-            # 平滑緩衝區渲染：每 20 個字刷新一次，徹底消除介面卡頓
+            # 🚀 平滑緩衝區渲染
             response = model.generate_content(prompt, stream=True)
             for chunk in response:
                 if chunk.text:
@@ -451,35 +449,32 @@ if generate_btn:
                         text_buffer = ""
             
             output_box.markdown(full_text)
-            app_data["generated_content"] = full_text
-            st.success("🎉 本章生成完成！")
             
+            # 🔒 關鍵修復：生成結束立刻同步寫入 Session State 資料庫
+            app_data["generated_content"] = full_text
+            st.session_state["app_data"]["generated_content"] = full_text
+            st.success("🎉 本章生成完成！")
+
+            # 📋 緊接著在下方即時繪製『一鍵複製』與『純文字框』，保證 100% 同步！
+            escaped_text = json.dumps(full_text)
+            copy_button_html = f"""
+                <button id="copyBtn" style="
+                    background-color: #FF4B4B; color: white; border: none; padding: 10px 20px;
+                    font-size: 16px; font-weight: bold; border-radius: 8px; cursor: pointer; width: 100%;
+                ">📋 一鍵複製最新全章內文至剪貼簿</button>
+                <script>
+                    document.getElementById('copyBtn').addEventListener('click', function() {{
+                        var text = {escaped_text};
+                        navigator.clipboard.writeText(text).then(function() {{
+                            alert('✅ 已成功將最新小說全章複製到剪貼簿！');
+                        }}, function(err) {{
+                            alert('❌ 複製失敗，請使用純文字框複製。');
+                        }});
+                    }});
+                </script>
+            """
+            components.html(copy_button_html, height=60)
+            st.text_area("📋 複製專用純文字框 (最新內容)", value=full_text, height=300, key=f"res_ta_live_{ver}")
+
         except Exception as e:
             st.error(f"Gemini API 呼叫失敗：{str(e)}")
-
-# 展示生成的成果與複製功能
-if app_data.get("generated_content"):
-    st.markdown("---")
-    st.subheader("📝 本章生成成果：")
-    
-    escaped_text = json.dumps(app_data["generated_content"])
-    copy_button_html = f"""
-        <button id="copyBtn" style="
-            background-color: #FF4B4B; color: white; border: none; padding: 10px 20px;
-            font-size: 16px; font-weight: bold; border-radius: 8px; cursor: pointer; width: 100%;
-        ">📋 一鍵複製全章內文至剪貼簿</button>
-        <script>
-            document.getElementById('copyBtn').addEventListener('click', function() {{
-                var text = {escaped_text};
-                navigator.clipboard.writeText(text).then(function() {{
-                    alert('✅ 已成功將小說全章複製到剪貼簿！');
-                }}, function(err) {{
-                    alert('❌ 複製失敗，請使用純文字框複製。');
-                }});
-            }});
-        </script>
-    """
-    components.html(copy_button_html, height=60)
-    st.text_area("📋 複製專用純文字框", value=app_data["generated_content"], height=300, key=f"res_ta_{ver}")
-    st.markdown("---")
-    st.write(app_data["generated_content"])
