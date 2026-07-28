@@ -514,11 +514,11 @@ if generate_btn:
             }
 
             # 🎯 嚴格遵循模型調用指令：優先 flash-latest，備選 3.5-flash
-            target_model = "flash-latest"
+            target_model = "Gemini-flash-latest"
             try:
                 model = genai.GenerativeModel(target_model)
             except Exception:
-                target_model = "3.5-flash"
+                target_model = "Gemini-3.5-flash"
                 model = genai.GenerativeModel(target_model)
             
             with st.spinner("✨ 正在撰寫小說內文並強制捕捉伏筆中..."):
