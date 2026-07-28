@@ -25,7 +25,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("✍️ 專業小說家 AI 全書寫作工作站")
-st.caption("主頁面分頁極簡架構（直連 Gemini Flash API） | 100% 通用現有 JSON 存檔")
+st.caption("主頁面分頁極簡架構（直連 Gemini Flash API） | 自動伏筆追蹤與長線管理 | 100% 通用現有 JSON 存檔")
 
 # ================= 預設資料初始化 =================
 default_data = {
@@ -35,6 +35,14 @@ default_data = {
   "confirmed_rules_list": [{"id": "r1", "content": "絕不可發聲或製造空氣震動（違者觸發黑液與菌絲吞噬）。"}],
   "hypotheses_list": [],
   "clues_list": [{"id": "cl1", "content": "收到驚慌簡訊，說明車上有東西一直發出聲音。"}],
+  "foreshadowing_list": [
+      {
+          "id": "f_demo_1",
+          "content": "吧台下方帶有墨跡血斑的舊報紙",
+          "status": "待解答 (預計第7章解答)",
+          "truth": "報紙上記錄著當年列車第一次進入虛空時的歷史記錄，藏有通往車頭駕駛室的密碼線索"
+      }
+  ],
   "items_inventory": [
     {"id": "it1", "name": "蘇默的手機", "status": "時間鎖死在 06:52，電量約93%", "owner": "蘇默"},
     {"id": "it2", "name": "蘇默的背包", "status": "裡面放著大學新生會攜帶的東西", "owner": "蘇默"}
@@ -89,10 +97,11 @@ app_data = st.session_state["app_data"]
 ver = st.session_state["upload_ver"]
 
 # ================= 主頁面頂部：主分頁選單 =================
-tab_main, tab_world, tab_items, tab_chars, tab_system = st.tabs([
+tab_main, tab_foreshadow, tab_world, tab_items, tab_chars, tab_system = st.tabs([
     "✍️ 本章寫作控制台", 
+    "🔮 長線伏筆與案件牆",
     "🌌 世界觀與地圖庫", 
-    "🎒 道具與規則案件牆", 
+    "🎒 道具與鐵律案件牆", 
     "👥 角色卡片庫", 
     "💾 API 設定與存檔管理"
 ])
@@ -150,9 +159,61 @@ with tab_main:
         app_data["writing_taboos"] = st.text_area("🚫 寫作禁忌", value=app_data.get("writing_taboos", ""), height=70, key=f"wt_{ver}")
 
     st.divider()
-    generate_btn = st.button("✨ 開始生成本章小說內文", type="primary", use_container_width=True, key=f"gen_btn_{ver}")
+    generate_btn = st.button("✨ 開始生成本章小說內文 (AI 自動捕捉與記錄伏筆)", type="primary", use_container_width=True, key=f"gen_btn_{ver}")
 
-# ---------------- Tab 2: 世界觀與地圖庫 ----------------
+# ---------------- Tab 2: 長線伏筆與案件牆 ----------------
+with tab_foreshadow:
+    st.subheader("🔮 長線伏筆與謎團策劃庫")
+    st.caption("💡 這裡記錄了所有 AI 寫作時自動捕捉或由你手動創建的伏筆。AI 生成新章節時會自動讀取並推演這些伏筆！")
+    
+    col_f_t, col_f_a = st.columns([3, 1])
+    with col_f_t: st.markdown("### 📜 全書伏筆追蹤清單")
+    with col_f_a:
+        if st.button("➕ 手動新增伏筆", key=f"add_f_btn_{ver}"):
+            new_f_id = f"f_{datetime.now().strftime('%M%S%f')}"
+            app_data.setdefault("foreshadowing_list", []).append({
+                "id": new_f_id,
+                "content": "新伏筆表面現象...",
+                "status": "待解答 (預計第X章解答)",
+                "truth": "背後隱藏的真實真相..."
+            })
+            st.rerun()
+
+    f_list = app_data.get("foreshadowing_list", [])
+    
+    if not f_list:
+        st.info("💡 目前尚無紀錄中的伏筆。按下生成小說按鈕時，AI 會自動將寫作中種下的新伏筆記錄到這裡！")
+    else:
+        # 分分類顯示：待解答 / 回收中 / 已解答
+        tab_f1, tab_f2, tab_f3 = st.tabs(["📌 待解答/埋下中", "🔄 揭露中/推演中", "✅ 已完全回收"])
+        
+        for f_idx in range(len(f_list) - 1, -1, -1):
+            f_item = f_list[f_idx]
+            f_id = f_item.get("id", f"f_{f_idx}")
+            status_str = f_item.get("status", "待解答")
+            
+            # 自動分配到對應 Tab
+            if "回收" in status_str or "完全解答" in status_str or "已解答" in status_str:
+                target_f_tab = tab_f3
+            elif "揭露中" in status_str or "推演中" in status_str or "部分" in status_str:
+                target_f_tab = tab_f2
+            else:
+                target_f_tab = tab_f1
+
+            with target_f_tab:
+                title_preview = f_item.get('content', '未命名伏筆')
+                if len(title_preview) > 20: title_preview = title_preview[:20] + "..."
+                
+                with st.expander(f"🔮 伏筆：{title_preview} 【{status_str}】", expanded=True):
+                    f_item['content'] = st.text_input("📍 伏筆表面現象/描寫細節", value=f_item.get('content', ''), key=f"fc_{f_id}_{ver}")
+                    f_item['status'] = st.text_input("⏱️ 當前狀態/預計解答章節", value=f_item.get('status', ''), key=f"fs_{f_id}_{ver}")
+                    f_item['truth'] = st.text_area("🔒 隱藏真相 (AI 寫作會參考，暫不對讀者直接公開)", value=f_item.get('truth', ''), height=80, key=f"ft_{f_id}_{ver}")
+                    
+                    if st.button("🗑️ 刪除此伏筆", key=f"fd_{f_id}_{ver}"):
+                        f_list.pop(f_idx)
+                        st.rerun()
+
+# ---------------- Tab 3: 世界觀與地圖庫 ----------------
 with tab_world:
     st.subheader("🌌 全書世界觀與地圖設定")
     
@@ -189,11 +250,10 @@ with tab_world:
                 loc_list.pop(loc_idx)
                 st.rerun()
 
-# ---------------- Tab 3: 道具與規則案件牆 ----------------
+# ---------------- Tab 4: 道具與規則案件牆 ----------------
 with tab_items:
     st.subheader("🎒 道具庫與案件牆")
     
-    # 道具庫
     col_it_t, col_it_a = st.columns([3, 1])
     with col_it_t: st.subheader("📦 可用道具庫")
     with col_it_a:
@@ -216,7 +276,6 @@ with tab_items:
 
     st.divider()
     
-    # 鐵律、假說、線索
     col_r_t, col_r_a = st.columns([3, 1])
     with col_r_t: st.subheader("✅ 已驗證鐵律")
     with col_r_a:
@@ -255,7 +314,7 @@ with tab_items:
                 clues_list.pop(cl_idx)
                 st.rerun()
 
-# ---------------- Tab 4: 角色卡片庫 ----------------
+# ---------------- Tab 5: 角色卡片庫 ----------------
 with tab_chars:
     col_char_t, col_char_a = st.columns([3, 1])
     with col_char_t: st.subheader("👥 角色卡片庫")
@@ -298,7 +357,7 @@ with tab_chars:
                     char_list.pop(c_idx)
                     st.rerun()
 
-# ---------------- Tab 5: API 設定與存檔管理 ----------------
+# ---------------- Tab 6: API 設定與存檔管理 ----------------
 with tab_system:
     st.subheader("💾 系統設定與存檔管理")
     
@@ -358,7 +417,12 @@ updated_characters_text = "".join([
     for c in app_data.get("character_list", [])
 ])
 
-# ================= 直連 Gemini API 生成邏輯 (平滑渲染與複製完全同步) =================
+foreshadowing_context = "".join([
+    f"• [id:{f.get('id')}] 伏筆：{f.get('content')} | 狀態：{f.get('status')} | 真相：{f.get('truth')}\n"
+    for f in app_data.get("foreshadowing_list", [])
+])
+
+# ================= 直連 Gemini API 生成邏輯 (JSON模式+伏筆捕捉) =================
 if generate_btn:
     if not active_api_key:
         st.error("❌ 找不到 Gemini API Key！請先在『💾 API 設定與存檔管理』頁面填入 Key。")
@@ -383,7 +447,7 @@ if generate_btn:
 """
 
         prompt = f"""
-你是一位頂級的懸疑 / 克蘇魯 / 規則怪談小說作家。請根據以下完整的全書世界觀、區域設定與本章微調指令，為我撰寫小說最新一章的純內文。
+你是一位頂級的懸疑 / 克蘇魯 / 規則怪談小說作家。請根據以下完整的全書世界觀、區域設定與本章微調指令，為我撰寫小說最新一章的純內文，並自動捕捉你在內文中順手埋下的新伏筆。
 
 【全書背景】
 • 書名：{app_data.get('book_title')} ({app_data.get('book_theme')})
@@ -397,6 +461,9 @@ if generate_btn:
 {rules_text}
 • 當前可用道具庫：
 {items_text}
+
+【目前已記錄的長線伏筆與懸念】
+{foreshadowing_context if foreshadowing_context else "目前暫無紀錄中的伏筆。"}
 
 【登場角色與複雜關係鏈】
 {updated_characters_text}
@@ -416,16 +483,20 @@ if generate_btn:
 • 必須包含元素：\n{app_data.get('must_include')}
 • 寫作禁忌 (Negative Prompt)：\n{app_data.get('writing_taboos')}
 
-【寫作與格式極嚴格要求】
-1. **直接輸出純小說內文**，不要帶有任何開場白、結語、分析文字或系統日誌標籤。
-2. 保持極度壓抑、嚴密符合物理消能與規則怪談的氣氛。
-3. 嚴格遵循「寫作禁忌」。
+【極重要輸出格式要求】
+請務必輸出符合 JSON 規範的物件，包含以下兩個 Key：
+1. "novel_text": 本章的小說純內文（需符合所有寫作禁忌與風格，嚴禁任何開場白或結語）。
+2. "new_foreshadowing": 一個陣列，記錄你在本章寫作時順手埋下的全新伏筆（若沒有則給 []）。
+   每個伏筆包含：
+   - "content": 伏筆表面現象描述（例如：吧台下沾血的舊報紙）
+   - "status": 預計回收計畫（例如：待解答 (預計第7章解答)）
+   - "truth": 背後真實原因（例如：報紙上記錄著當年列車的秘密）
 """
 
         try:
             genai.configure(api_key=active_api_key)
             
-            target_model = "gemini-flash-latest"
+            target_model = "gemini-1.5-flash"
             try:
                 model = genai.GenerativeModel(target_model)
                 st.caption(f"⚡ 成功連線高頻極速模型：`{target_model}`")
@@ -434,29 +505,42 @@ if generate_btn:
                 model = genai.GenerativeModel(target_model)
                 st.caption(f"⚡ 自動切換連線模型：`{target_model}`")
             
-            output_box = st.empty()
-            full_text = ""
-            text_buffer = ""
+            # 🚀 採用 JSON Mode，確保 100% 回傳標準 JSON
+            with st.spinner("✨ 正在撰寫小說內文並自動抓取伏筆中..."):
+                response = model.generate_content(
+                    prompt,
+                    generation_config={"response_mime_type": "application/json"}
+                )
             
-            # 🚀 平滑緩衝區渲染
-            response = model.generate_content(prompt, stream=True)
-            for chunk in response:
-                if chunk.text:
-                    full_text += chunk.text
-                    text_buffer += chunk.text
-                    if len(text_buffer) >= 20:
-                        output_box.markdown(full_text)
-                        text_buffer = ""
+            # 解析 JSON 封包
+            result_json = json.loads(response.text)
+            novel_text = result_json.get("novel_text", "")
+            new_foreshadows = result_json.get("new_foreshadowing", [])
             
-            output_box.markdown(full_text)
-            
-            # 🔒 關鍵修復：生成結束立刻同步寫入 Session State 資料庫
-            app_data["generated_content"] = full_text
-            st.session_state["app_data"]["generated_content"] = full_text
-            st.success("🎉 本章生成完成！")
+            # 1. 寫入 Session State 小說內文
+            app_data["generated_content"] = novel_text
+            st.session_state["app_data"]["generated_content"] = novel_text
 
-            # 📋 緊接著在下方即時繪製『一鍵複製』與『純文字框』，保證 100% 同步！
-            escaped_text = json.dumps(full_text)
+            # 2. 自動將 AI 捕捉到的新伏筆添加進伏筆庫
+            added_count = 0
+            for nf in new_foreshadows:
+                if nf.get("content"):
+                    new_f_id = f"f_{datetime.now().strftime('%M%S%f')}"
+                    app_data.setdefault("foreshadowing_list", []).append({
+                        "id": new_f_id,
+                        "content": nf.get("content", ""),
+                        "status": nf.get("status", "待解答"),
+                        "truth": nf.get("truth", "")
+                    })
+                    added_count += 1
+
+            if added_count > 0:
+                st.success(f"🎉 本章生成完成！自動為你捕捉到 {added_count} 個全新伏筆，並已同步寫入『🔮 長線伏筆』分頁！")
+            else:
+                st.success("🎉 本章生成完成！")
+
+            # 📋 即時繪製一鍵複製與純文字框，保證 100% 同步
+            escaped_text = json.dumps(novel_text)
             copy_button_html = f"""
                 <button id="copyBtn" style="
                     background-color: #FF4B4B; color: white; border: none; padding: 10px 20px;
@@ -474,7 +558,9 @@ if generate_btn:
                 </script>
             """
             components.html(copy_button_html, height=60)
-            st.text_area("📋 複製專用純文字框 (最新內容)", value=full_text, height=300, key=f"res_ta_live_{ver}")
+            st.text_area("📋 複製專用純文字框 (最新內容)", value=novel_text, height=350, key=f"res_ta_live_{ver}")
+            st.markdown("---")
+            st.write(novel_text)
 
         except Exception as e:
-            st.error(f"Gemini API 呼叫失敗：{str(e)}")
+            st.error(f"Gemini API 呼叫或 JSON 解析失敗：{str(e)}")
