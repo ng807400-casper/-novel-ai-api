@@ -35,14 +35,7 @@ default_data = {
   "confirmed_rules_list": [{"id": "r1", "content": "絕不可發聲或製造空氣震動（違者觸發黑液與菌絲吞噬）。"}],
   "hypotheses_list": [],
   "clues_list": [{"id": "cl1", "content": "收到驚慌簡訊，說明車上有東西一直發出聲音。"}],
-  "foreshadowing_list": [
-      {
-          "id": "f_demo_1",
-          "content": "吧台下方帶有墨跡血斑的舊報紙",
-          "status": "待解答 (預計第7章解答)",
-          "truth": "報紙上記錄著當年列車第一次進入虛空時的歷史記錄，藏有通往車頭駕駛室的密碼線索"
-      }
-  ],
+  "foreshadowing_list": [],
   "items_inventory": [
     {"id": "it1", "name": "蘇默的手機", "status": "時間鎖死在 06:52，電量約93%", "owner": "蘇默"},
     {"id": "it2", "name": "蘇默的背包", "status": "裡面放著大學新生會攜帶的東西", "owner": "蘇默"}
@@ -161,6 +154,33 @@ with tab_main:
     st.divider()
     generate_btn = st.button("✨ 開始生成本章小說內文 (AI 自動捕捉與記錄伏筆)", type="primary", use_container_width=True, key=f"gen_btn_{ver}")
 
+    # 展示最新一次生成的內文與複製按鈕
+    if app_data.get("generated_content"):
+        st.markdown("---")
+        st.subheader("📝 本章最新生成成果：")
+        
+        escaped_text = json.dumps(app_data["generated_content"])
+        copy_button_html = f"""
+            <button id="copyBtn" style="
+                background-color: #FF4B4B; color: white; border: none; padding: 10px 20px;
+                font-size: 16px; font-weight: bold; border-radius: 8px; cursor: pointer; width: 100%;
+            ">📋 一鍵複製最新全章內文至剪貼簿</button>
+            <script>
+                document.getElementById('copyBtn').addEventListener('click', function() {{
+                    var text = {escaped_text};
+                    navigator.clipboard.writeText(text).then(function() {{
+                        alert('✅ 已成功將最新小說全章複製到剪貼簿！');
+                    }}, function(err) {{
+                        alert('❌ 複製失敗，請使用純文字框複製。');
+                    }});
+                }});
+            </script>
+        """
+        components.html(copy_button_html, height=60)
+        st.text_area("📋 複製專用純文字框 (最新內容)", value=app_data["generated_content"], height=350, key=f"res_ta_live_{ver}")
+        st.markdown("---")
+        st.write(app_data["generated_content"])
+
 # ---------------- Tab 2: 長線伏筆與案件牆 ----------------
 with tab_foreshadow:
     st.subheader("🔮 長線伏筆與謎團策劃庫")
@@ -184,7 +204,6 @@ with tab_foreshadow:
     if not f_list:
         st.info("💡 目前尚無紀錄中的伏筆。按下生成小說按鈕時，AI 會自動將寫作中種下的新伏筆記錄到這裡！")
     else:
-        # 分分類顯示：待解答 / 回收中 / 已解答
         tab_f1, tab_f2, tab_f3 = st.tabs(["📌 待解答/埋下中", "🔄 揭露中/推演中", "✅ 已完全回收"])
         
         for f_idx in range(len(f_list) - 1, -1, -1):
@@ -192,7 +211,6 @@ with tab_foreshadow:
             f_id = f_item.get("id", f"f_{f_idx}")
             status_str = f_item.get("status", "待解答")
             
-            # 自動分配到對應 Tab
             if "回收" in status_str or "完全解答" in status_str or "已解答" in status_str:
                 target_f_tab = tab_f3
             elif "揭露中" in status_str or "推演中" in status_str or "部分" in status_str:
@@ -422,14 +440,11 @@ foreshadowing_context = "".join([
     for f in app_data.get("foreshadowing_list", [])
 ])
 
-# ================= 直連 Gemini API 生成邏輯 (JSON模式+伏筆捕捉) =================
+# ================= 直連 Gemini API 生成邏輯 (含即時刷新伏筆機制) =================
 if generate_btn:
     if not active_api_key:
         st.error("❌ 找不到 Gemini API Key！請先在『💾 API 設定與存檔管理』頁面填入 Key。")
     else:
-        st.markdown("---")
-        st.subheader("📝 本章生成成果：")
-        
         pov_type = app_data.get("pov_type", "第一人稱")
         pov_character = app_data.get("pov_character", "蘇默")
 
@@ -499,20 +514,16 @@ if generate_btn:
             target_model = "gemini-flash-latest"
             try:
                 model = genai.GenerativeModel(target_model)
-                st.caption(f"⚡ 成功連線高頻極速模型：`{target_model}`")
             except Exception:
                 target_model = "gemini-2.0-flash"
                 model = genai.GenerativeModel(target_model)
-                st.caption(f"⚡ 自動切換連線模型：`{target_model}`")
             
-            # 🚀 採用 JSON Mode，確保 100% 回傳標準 JSON
             with st.spinner("✨ 正在撰寫小說內文並自動抓取伏筆中..."):
                 response = model.generate_content(
                     prompt,
                     generation_config={"response_mime_type": "application/json"}
                 )
             
-            # 解析 JSON 封包
             result_json = json.loads(response.text)
             novel_text = result_json.get("novel_text", "")
             new_foreshadows = result_json.get("new_foreshadowing", [])
@@ -534,33 +545,8 @@ if generate_btn:
                     })
                     added_count += 1
 
-            if added_count > 0:
-                st.success(f"🎉 本章生成完成！自動為你捕捉到 {added_count} 個全新伏筆，並已同步寫入『🔮 長線伏筆』分頁！")
-            else:
-                st.success("🎉 本章生成完成！")
-
-            # 📋 即時繪製一鍵複製與純文字框，保證 100% 同步
-            escaped_text = json.dumps(novel_text)
-            copy_button_html = f"""
-                <button id="copyBtn" style="
-                    background-color: #FF4B4B; color: white; border: none; padding: 10px 20px;
-                    font-size: 16px; font-weight: bold; border-radius: 8px; cursor: pointer; width: 100%;
-                ">📋 一鍵複製最新全章內文至剪貼簿</button>
-                <script>
-                    document.getElementById('copyBtn').addEventListener('click', function() {{
-                        var text = {escaped_text};
-                        navigator.clipboard.writeText(text).then(function() {{
-                            alert('✅ 已成功將最新小說全章複製到剪貼簿！');
-                        }}, function(err) {{
-                            alert('❌ 複製失敗，請使用純文字框複製。');
-                        }});
-                    }});
-                </script>
-            """
-            components.html(copy_button_html, height=60)
-            st.text_area("📋 複製專用純文字框 (最新內容)", value=novel_text, height=350, key=f"res_ta_live_{ver}")
-            st.markdown("---")
-            st.write(novel_text)
+            # ⚡ 關鍵修復：呼叫 st.rerun() 讓畫面重新渲染，上方的「伏筆追蹤清單」就會立刻刷新出這 1 支新伏筆！
+            st.rerun()
 
         except Exception as e:
             st.error(f"Gemini API 呼叫或 JSON 解析失敗：{str(e)}")
