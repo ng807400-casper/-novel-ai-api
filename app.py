@@ -3,7 +3,6 @@ import json
 import os
 import google.generativeai as genai
 from datetime import datetime
-import streamlit.components.v1 as components
 
 # 頁面基本設定
 st.set_page_config(page_title="專業小說家 AI 寫作工作站", page_icon="✍️", layout="wide")
@@ -190,7 +189,6 @@ with tab_foreshadow:
     if not f_list:
         st.info("💡 目前尚無紀錄中的伏筆。按下生成小說按鈕時，AI 會自動將編寫中種下的新伏筆記錄到這裡！")
     else:
-        # 🔑 1. 精準安全刪除機制（使用唯一 ID 精確匹配，避免一口氣刪光）
         delete_target_id = None
         
         for f_idx, f_item in enumerate(f_list):
@@ -429,7 +427,7 @@ foreshadowing_context = "".join([
     for f in app_data.get("foreshadowing_list", [])
 ])
 
-# ================= 直連 Gemini API 生成邏輯 (含 Response Schema 強制驗證) =================
+# ================= 直連 Gemini API 生成邏輯 (模型順序依指令修正) =================
 if generate_btn:
     if not active_api_key:
         st.error("❌ 找不到 Gemini API Key！請先在『💾 API 設定與存檔管理』頁面填入 Key。")
@@ -494,7 +492,7 @@ if generate_btn:
         try:
             genai.configure(api_key=active_api_key)
             
-            # 🔑 2. 定義硬性 JSON 結構 (Response Schema)，強制 API 回傳符合格式的 JSON
+            # 定義硬性 JSON 結構 (Response Schema)
             response_schema = {
                 "type": "OBJECT",
                 "properties": {
@@ -515,11 +513,12 @@ if generate_btn:
                 "required": ["novel_text", "new_foreshadowing"]
             }
 
-            target_model = "gemini-1.5-flash"
+            # 🎯 嚴格遵循模型調用指令：優先 flash-latest，備選 3.5-flash
+            target_model = "flash-latest"
             try:
                 model = genai.GenerativeModel(target_model)
             except Exception:
-                target_model = "gemini-2.0-flash"
+                target_model = "3.5-flash"
                 model = genai.GenerativeModel(target_model)
             
             with st.spinner("✨ 正在撰寫小說內文並強制捕捉伏筆中..."):
