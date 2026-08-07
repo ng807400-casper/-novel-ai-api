@@ -214,11 +214,27 @@ with tab_main:
         st.markdown("### 📖 全章閱讀預覽 Mode：")
         st.markdown(app_data["generated_content"])
 
-# ---------------- Tab 2: 長線伏筆與案件牆 (支援進度鎖與 AI 單獨生成伏筆) ----------------
+# ---------------- Tab 2: 長線伏筆與案件牆 (支援指定方向與 AI 自動發想) ----------------
 with tab_foreshadow:
     st.subheader("🔮 長線伏筆與謎團策劃庫")
-    st.caption("💡 這裡記錄了所有 AI 寫作時自動捕捉或由你手動創建的伏筆。你可以調整『解開進度鎖』與『本章揭露邊界』，精準控制劇透節奏！")
+    st.caption("💡 這裡記錄了所有 AI 寫作時自動捕捉或由你手動創建的伏筆。你可以指定靈感方向，讓 AI 為你精準發想！")
     
+    # 🎯 新增：指定伏筆方向與類型的控制面板
+    with st.expander("🎯 點此開啟【AI 伏筆靈感定向發想面板】", expanded=True):
+        col_f_dir1, col_f_dir2 = st.columns([1, 2])
+        with col_f_dir1:
+            f_type_selected = st.selectbox(
+                "🏷️ 指定伏筆類型",
+                ["隨機發想 (不限題材)", "🎒 隨身道具/古典物品類", "🏚️ 車廂環境/物理異象類", "👥 配角秘密/身體異變類", "🔒 鐵律漏洞/高維真相類"],
+                key=f"f_type_{ver}"
+            )
+        with col_f_dir2:
+            f_custom_prompt = st.text_input(
+                "💬 輸入具體發想方向或關鍵字 (選填)",
+                placeholder="例如：想要一個藏在座椅縫隙裡的20世紀小物，能預警危險但會造成眼部劇痛...",
+                key=f"f_custom_{ver}"
+            )
+
     col_f_t, col_f_a1, col_f_a2 = st.columns([2, 1, 1])
     with col_f_t: st.markdown("### 📜 全書伏筆追蹤清單")
     
@@ -236,14 +252,14 @@ with tab_foreshadow:
             })
             st.rerun()
 
-    # 2. 🤖 AI 單獨生成新伏筆按鈕（智慧功能 2）
+    # 2. 🤖 AI 定向生成伏筆按鈕
     with col_f_a2:
-        btn_ai_f = st.button("🤖 AI 單獨發想伏筆", type="primary", key=f"ai_gen_f_btn_{ver}", use_container_width=True)
+        btn_ai_f = st.button("🤖 依指定方向發想伏筆", type="primary", key=f"ai_gen_f_btn_{ver}", use_container_width=True)
 
     f_list = app_data.get("foreshadowing_list", [])
     
     if not f_list:
-        st.info("💡 目前尚無紀錄中的伏筆。你可以點擊上方『🤖 AI 單獨發想伏筆』按鈕讓 AI 自動靈感生成！")
+        st.info("💡 目前尚無紀錄中的伏筆。你可以設定上方方向後，點擊『🤖 依指定方向發想伏筆』讓 AI 自動生成！")
     else:
         tab_f1, tab_f2, tab_f3 = st.tabs(["📌 待解答/埋下中 (0%-20%)", "🔄 揭露中/推演中 (50%-80%)", "✅ 已完全回收 (100%)"])
         
@@ -292,6 +308,7 @@ with tab_foreshadow:
         if delete_target_id:
             app_data["foreshadowing_list"] = [item for item in app_data["foreshadowing_list"] if item.get("id") != delete_target_id]
             st.rerun()
+
 
 # ---------------- Tab 3: 世界觀與地圖庫 ----------------
 with tab_world:
