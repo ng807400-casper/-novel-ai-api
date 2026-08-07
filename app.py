@@ -4,10 +4,9 @@ import os
 import google.generativeai as genai
 from datetime import datetime
 
-# ================= 頁面基本設定 =================
+# ================= 1. 頁面基本與 CSS 樣式設定 =================
 st.set_page_config(page_title="專業小說家 AI 寫作工作站", page_icon="✍️", layout="wide")
 
-# 🔓 強制解鎖全頁面文字選取與複製 + 優化文字框換行排版
 st.markdown("""
     <style>
     * {
@@ -29,14 +28,19 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.title("✍️ 專業小說家 AI 全書寫作工作站 (雙文風強化版)")
-st.caption("懸疑比照《深海餘燼》 | 戰鬥比照《輪迴樂園》 | 獨立文風欄位 | 徹底去除物理硬約束")
-
-# ================= 預設資料初始化 =================
+# ================= 2. 預設資料初始化 (包含 world_event) =================
 default_data = {
   "book_title": "《克蘇魯的遊樂園》",
   "book_theme": "懸疑 / 克蘇魯 / 規則怪談 / 心理博弈 / 高智商解謎",
   "book_overall_secret": "希靈帝國在阻止虛空大災變的過程中，意外聯絡上虛空背面的神族，得知虛空大災變真相為虛空雙向歸零的機制。",
+  "world_event": {
+    "title": "車頭核心震盪與第10車廂失壓異變",
+    "scope": "全列車第 8 ~ 12 車廂",
+    "description": "列車突然發生無聲劇烈震動，窗外的虛空廢墟黑液狂暴湧動，第10車廂的菌絲擴散速度瞬間提升三倍，所有車廂連結門開始無規律關閉！",
+    "impact_hero": "蘇默原本的搜查計畫被打亂，必須在車廂門永久鎖死前找出安全的通過方式。",
+    "impact_allies": "西裝男左半身木化加速擴散，求生本能壓倒理智，開始密謀搶奪蘇默隨身攜帶的防護道具。",
+    "impact_villains": "高維觀察者將列車污染等級提升，開始向後方車廂投放高階變異體進行極限壓力測試。"
+  },
   "confirmed_rules_list": [{"id": "r1", "content": "絕不可發聲或製造空氣震動（違者觸發黑液與菌絲吞噬）。"}],
   "hypotheses_list": [],
   "clues_list": [{"id": "cl1", "content": "收到驚慌簡訊，說明車上有東西一直發出聲音。"}],
@@ -88,212 +92,162 @@ default_data = {
   "foreshadow_black_list": "• 禁止重複出現指針逆轉的懷錶/鐘錶類道具\n• 禁止重複出現吧台下的舊報紙/傳單線索\n• 禁止重複出現神秘簡訊突然警告/預警\n• 禁止重複出現牆壁/鏡面上的血字提示"
 }
 
-# 全域 Session State 數據與版本號綁定
-if "app_data" not in st.session_state:
-    st.session_state["app_data"] = default_data
-if "last_uploaded_filename" not in st.session_state:
-    st.session_state["last_uploaded_filename"] = None
-if "upload_ver" not in st.session_state:
-    st.session_state["upload_ver"] = 0
-if "just_generated" not in st.session_state:
-    st.session_state["just_generated"] = False
-if "gen_time_key" not in st.session_state:
-    st.session_state["gen_time_key"] = "initial"
-if "director_script" not in st.session_state:
-    st.session_state["director_script"] = ""
+# Session State 管理
+if "app_data" not in st.session_state: st.session_state["app_data"] = default_data
+if "last_uploaded_filename" not in st.session_state: st.session_state["last_uploaded_filename"] = None
+if "upload_ver" not in st.session_state: st.session_state["upload_ver"] = 0
+if "just_generated" not in st.session_state: st.session_state["just_generated"] = False
+if "gen_time_key" not in st.session_state: st.session_state["gen_time_key"] = "initial"
+if "director_script" not in st.session_state: st.session_state["director_script"] = ""
 
 app_data = st.session_state["app_data"]
 ver = st.session_state["upload_ver"]
 
-# ================= 主頁面頂部：主分頁選單 =================
-tab_main, tab_foreshadow, tab_world, tab_items, tab_chars, tab_system = st.tabs([
-    "✍️ 本章寫作控制台", 
-    "🔮 長線伏筆與案件牆",
-    "🌌 世界觀與地圖庫", 
-    "🎒 道具與鐵律案件牆", 
-    "👥 角色卡片庫", 
-    "💾 API 設定與文風管理"
+# 確保 world_event 字典結構存在
+if "world_event" not in app_data:
+    app_data["world_event"] = default_data["world_event"]
+
+# ================= 3. 頂部狀態列看板 =================
+st.title(f"📖 {app_data.get('book_title', '未命名作品')}")
+
+col_dash1, col_dash2, col_dash3, col_dash4 = st.columns(4)
+with col_dash1: st.metric("🎯 當前進度", f"{app_data.get('current_vol_title', '第一集')} 第 {app_data.get('current_chap', 1)} 章")
+with col_dash2: st.metric("📝 目標字數", f"{app_data.get('target_chapter_words', 4000)} 字")
+with col_dash3: st.metric("🔮 追蹤伏筆數", f"{len(app_data.get('foreshadowing_list', []))} 個")
+with col_dash4: st.metric("🌪️ 當前大事件", app_data["world_event"].get("title", "無事件"))
+
+st.markdown("---")
+
+# ================= 4. 主選單五大架構分類 =================
+tab_write, tab_event_hub, tab_foreshadow_hub, tab_world_hub, tab_system_hub = st.tabs([
+    "🎬 【本章寫作與導演區】", 
+    "🌪️ 【世界大事件與局勢推演】",
+    "🔮 【伏筆智庫與進度鎖】",
+    "🌌 【世界觀、地圖與案件牆】", 
+    "👥 【角色與系統存檔管理】"
 ])
 
-# ---------------- Tab 1: 本章寫作控制台 ----------------
-with tab_main:
-    st.subheader(f"📖 當前撰寫作品：{app_data.get('book_title', '未命名')}")
-    
-    col_m1, col_m2, col_m3 = st.columns(3)
-    with col_m1:
-        app_data["current_vol_title"] = st.text_input("🎯 當前集數", value=app_data.get("current_vol_title", "第一集：失聲火車"), key=f"cvt_{ver}")
-    with col_m2:
-        app_data["current_chap"] = st.number_input("目前章節", value=int(app_data.get("current_chap", 1)), min_value=1, key=f"cc_{ver}")
-    with col_m3:
-        app_data["target_chapter_words"] = st.number_input("🎯 本章目標字數", value=int(app_data.get("target_chapter_words", 4000)), step=500, key=f"tcw_{ver}")
+# ---------------- Tab 1: 本章寫作與導演區 ----------------
+with tab_write:
+    col_w_top1, col_w_top2, col_w_top3 = st.columns(3)
+    with col_w_top1: app_data["current_vol_title"] = st.text_input("🎯 當前集數", value=app_data.get("current_vol_title", "第一集：失聲火車"), key=f"cvt_{ver}")
+    with col_w_top2: app_data["current_chap"] = st.number_input("目前章節", value=int(app_data.get("current_chap", 1)), min_value=1, key=f"cc_{ver}")
+    with col_w_top3: app_data["target_chapter_words"] = st.number_input("🎯 目標字數", value=int(app_data.get("target_chapter_words", 4000)), step=500, key=f"tcw_{ver}")
 
-    app_data["previous_summary"] = st.text_area("📌 上一章結尾錨點 (銜接點)", value=app_data.get("previous_summary", ""), height=100, key=f"ps_{ver}")
-    app_data["chapter_outline"] = st.text_area("🎯 本章具體大綱與情節推進 (主要寫作指令)", value=app_data.get("chapter_outline", ""), height=120, key=f"co_{ver}")
+    st.info(f"⚡ **當前觸發世界大事件**：【{app_data['world_event'].get('title')}】（已融入 API 生成背景中）")
 
-    # 🎬 智慧功能：AI 導演分鏡與審查
-    col_dir1, col_dir2 = st.columns([3, 1])
-    with col_dir2:
-        btn_director = st.button("🎬 點此讓 AI 先拆解導演分鏡腳本", key=f"dir_btn_{ver}", use_container_width=True)
+    app_data["previous_summary"] = st.text_area("📌 上一章銜接點 (Previous Summary)", value=app_data.get("previous_summary", ""), height=90, key=f"ps_{ver}")
+    app_data["chapter_outline"] = st.text_area("🎯 本章具體大綱 (主要寫作指令)", value=app_data.get("chapter_outline", ""), height=120, key=f"co_{ver}")
+
+    st.markdown("### ⚡ 雙階 AI 生成工作流")
+    col_act1, col_act2 = st.columns(2)
+    with col_act1: btn_director = st.button("🎬 第一步：AI 導演分鏡與邏輯檢查", use_container_width=True, key=f"dir_btn_{ver}")
+    with col_act2: generate_btn = st.button("✨ 第二步：正式生成精緻小說正文", type="primary", use_container_width=True, key=f"gen_btn_{ver}")
 
     if st.session_state["director_script"]:
-        with st.expander("🎬 AI 導演分鏡與邏輯檢查報告（點此折疊/展開）", expanded=True):
+        with st.expander("🎬 導演分鏡腳本報告 (已點擊拆解)", expanded=True):
             st.markdown(st.session_state["director_script"])
 
-    # 🔥 獨立出兩位神級作者的文風控制顯示卡
-    st.markdown("#### 🎭 雙神級作者文風控制 (已套用最高權重)")
-    col_style1, col_style2 = st.columns(2)
-    with col_style1:
-        app_data["style_suspense"] = st.text_area(
-            "🌊 懸疑/氛圍/對話文風 (預設：遠瞳《深海餘燼》)",
-            value=app_data.get("style_suspense", "比照「遠瞳」《深海餘燼》：注重客觀白描、恢弘壓抑的氛圍營造、深邃詭異的宏大感、冷酷環境與主角內心微吐槽的妙趣反差。"),
-            height=85,
-            key=f"ss_{ver}"
-        )
-    with col_style2:
-        app_data["style_battle"] = st.text_area(
-            "⚔️ 戰鬥/生死博弈文風 (預設：那一只蚊子《輪迴樂園》)",
-            value=app_data.get("style_battle", "比照「那一只蚊子」《輪迴樂園》：極致乾脆利落、肌肉與神經動能的微米級白描、生死博弈的冷酷果斷、刀刀見血的死鬥拉扯感。"),
-            height=85,
-            key=f"sb_{ver}"
-        )
-
-    with st.expander("⚙️ 點此展開【本章進階微調參數】", expanded=False):
-        st.markdown("#### 🔮 伏筆發想策略與【防重複黑名單】")
-        col_f_opt1, col_f_opt2 = st.columns([2, 1])
-        with col_f_opt1:
-            app_data["enable_new_foreshadow"] = st.checkbox("☑️ 允許 AI 在本章創作時埋下新伏筆", value=app_data.get("enable_new_foreshadow", True), key=f"enf_{ver}")
-        with col_f_opt2:
-            app_data["new_foreshadow_count"] = st.number_input("🎯 預期新增伏筆數量", value=int(app_data.get("new_foreshadow_count", 1)), min_value=0, max_value=5, step=1, key=f"nfc_{ver}")
-
-        app_data["foreshadow_black_list"] = st.text_area(
-            "🚫 嚴禁重複出現的伏筆類型 / 老套路黑名單 (避免出戲)",
-            value=app_data.get("foreshadow_black_list", "• 禁止重複出現懷錶/舊報紙/簡訊等老套路"),
-            height=80,
-            key=f"fbl_{ver}"
-        )
-
-        st.divider()
-
+    with st.expander("⚙️ 本章進階鏡頭與環境微調 (點擊展開)", expanded=False):
         char_names_list = [c.get('name', '蘇默') for c in app_data.get("character_list", [])]
-        
         col_env1, col_env2, col_env3 = st.columns(3)
         with col_env1:
             pov_options = ["第一人稱", "第三人稱限制視角", "第三人稱全知視角"]
             cur_pov = app_data.get("pov_type", "第一人稱")
-            pov_idx = pov_options.index(cur_pov) if cur_pov in pov_options else 0
-            app_data["pov_type"] = st.selectbox("👁️ 視角類型", pov_options, index=pov_idx, key=f"pov_t_{ver}")
+            app_data["pov_type"] = st.selectbox("👁️ 視角類型", pov_options, index=pov_options.index(cur_pov) if cur_pov in pov_options else 0, key=f"pov_t_{ver}")
         with col_env2:
             cur_pov_char = app_data.get("pov_character", "蘇默")
-            pchar_idx = char_names_list.index(cur_pov_char) if cur_pov_char in char_names_list else 0
-            app_data["pov_character"] = st.selectbox("👤 描寫視角主角", char_names_list if char_names_list else ["蘇默"], index=pchar_idx, key=f"pov_c_{ver}")
+            app_data["pov_character"] = st.selectbox("👤 視角主角", char_names_list if char_names_list else ["蘇默"], index=char_names_list.index(cur_pov_char) if cur_pov_char in char_names_list else 0, key=f"pov_c_{ver}")
         with col_env3:
             pacing_opts = ["中速推演 (解謎/搜查/對話)", "高速推進 (動作/戰鬥/逃跑)", "慢速壓抑 (鋪陳/恐懼/氛圍)"]
             cur_pacing = app_data.get("pacing_setting", "中速推演 (解謎/搜查/對話)")
-            pace_idx = pacing_opts.index(cur_pacing) if cur_pacing in pacing_opts else 0
-            app_data["pacing_setting"] = st.selectbox("⚡ 寫作節奏", pacing_opts, index=pace_idx, key=f"pacing_{ver}")
+            app_data["pacing_setting"] = st.selectbox("⚡ 寫作節奏", pacing_opts, index=pacing_opts.index(cur_pacing) if cur_pacing in pacing_opts else 0, key=f"pacing_{ver}")
 
         col_sub1, col_sub2 = st.columns(2)
         with col_sub1:
             app_data["time_and_environment"] = st.text_input("⏱️ 時間線與環境狀態", value=app_data.get("time_and_environment", ""), key=f"tae_{ver}")
+            app_data["scene_conflict"] = st.text_area("⚔️ 本章核心衝突", value=app_data.get("scene_conflict", ""), height=70, key=f"sc_{ver}")
+            app_data["must_include"] = st.text_area("🔑 必須出現的道具/伏筆", value=app_data.get("must_include", ""), height=70, key=f"mi_{ver}")
         with col_sub2:
-            app_data["tone_setting"] = st.text_input("🎭 全局基調設定備註", value=app_data.get("tone_setting", ""), key=f"ts_{ver}")
+            app_data["sensory_details"] = st.text_input("🌫️ 五感描寫重點", value=app_data.get("sensory_details", ""), key=f"sd_{ver}")
+            app_data["scene_turn"] = st.text_area("🔄 局勢/認知大翻轉", value=app_data.get("scene_turn", ""), height=70, key=f"st_{ver}")
+            app_data["reveal_and_mystery"] = st.text_area("🔍 伏筆揭示與新懸念", value=app_data.get("reveal_and_mystery", ""), height=70, key=f"rm_{ver}")
 
-        app_data["sensory_details"] = st.text_area("🌫️ 五感描寫重點", value=app_data.get("sensory_details", ""), height=70, key=f"sd_{ver}")
-
-        col_adv1, col_adv2 = st.columns(2)
-        with col_adv1:
-            app_data["scene_conflict"] = st.text_area("⚔️ 本章核心衝突點", value=app_data.get("scene_conflict", ""), height=70, key=f"sc_{ver}")
-            app_data["must_include"] = st.text_area("🔑 必須出現的伏筆/道具", value=app_data.get("must_include", ""), height=70, key=f"mi_{ver}")
-        with col_adv2:
-            app_data["scene_turn"] = st.text_area("🔄 本章局勢/認知大翻轉", value=app_data.get("scene_turn", ""), height=70, key=f"st_{ver}")
-            app_data["reveal_and_mystery"] = st.text_area("🔍 伏筆揭示與新未知懸念", value=app_data.get("reveal_and_mystery", ""), height=70, key=f"rm_{ver}")
-
-        app_data["writing_taboos"] = st.text_area("🚫 寫作禁忌", value=app_data.get("writing_taboos", ""), height=120, key=f"wt_{ver}")
-
-    st.divider()
-    generate_btn = st.button("✨ 開始生成精緻小說內文", type="primary", use_container_width=True, key=f"gen_btn_{ver}")
+        app_data["writing_taboos"] = st.text_area("🚫 寫作禁忌 (Negative Prompt)", value=app_data.get("writing_taboos", ""), height=100, key=f"wt_{ver}")
 
     if st.session_state["just_generated"]:
-        st.success("🎉 最新一章小說生成完成！已依據設定完成伏筆與雙重文風同步！")
+        st.success("🎉 最新一章小說生成完成！已自動完成世界大事件、伏筆與銜接點同步！")
         st.session_state["just_generated"] = False
 
     if app_data.get("generated_content"):
         st.markdown("---")
         st.subheader("📝 最新生成成果：")
-        
         current_gen_key = st.session_state["gen_time_key"]
-        st.text_area(
-            "📋 複製與編輯專用文字方塊 (已自動架構與斷行)", 
-            value=app_data["generated_content"], 
-            height=600, 
-            key=f"res_ta_{current_gen_key}_{ver}"
-        )
-        
+        st.text_area("📋 複製與編輯專用區", value=app_data["generated_content"], height=500, key=f"res_ta_{current_gen_key}_{ver}")
         st.markdown("---")
         st.markdown("### 📖 全章閱讀預覽 Mode：")
         st.markdown(app_data["generated_content"])
 
-# ---------------- Tab 2: 長線伏筆與案件牆 ----------------
-with tab_foreshadow:
-    st.subheader("🔮 長線伏筆與謎團策劃庫")
-    st.caption("💡 這裡記錄了所有 AI 寫作時自動捕捉或由你手動創建的伏筆。你可以指定方向讓 AI 發想，或直接手動填寫！")
+# ---------------- Tab 2: 世界大事件與局勢推演 (核心新功能) ----------------
+with tab_event_hub:
+    st.subheader("🌪️ 世界線大事件與連鎖局勢推演引擎")
+    st.caption("💡 在這裡設定宏觀世界爆發的大事件（如：車廂失壓、虛空黑潮爆發、警報響起），AI 會自動推演並強制改變各陣營角色的決策與行動！")
+
+    we = app_data["world_event"]
+    
+    col_we1, col_we2 = st.columns([2, 1])
+    with col_we1:
+        we["title"] = st.text_input("💥 當前世界大事件名稱", value=we.get("title", ""), key=f"we_t_{ver}")
+    with col_we2:
+        we["scope"] = st.text_input("📍 事件影響範圍/波及區域", value=we.get("scope", ""), key=f"we_s_{ver}")
+
+    we["description"] = st.text_area("📜 事件詳細狀況與環境巨變描寫", value=we.get("description", ""), height=100, key=f"we_d_{ver}")
+
+    st.markdown("### 🔗 陣營連鎖反應設定 (Domino Effect)")
+    col_imp1, col_imp2, col_imp3 = st.columns(3)
+    with col_imp1:
+        we["impact_hero"] = st.text_area("👤 對主角（蘇默）的直接影響/決策改變", value=we.get("impact_hero", ""), height=120, key=f"we_ih_{ver}")
+    with col_imp2:
+        we["impact_allies"] = st.text_area("👥 對配角/盟友的影響與心理動搖", value=we.get("impact_allies", ""), height=120, key=f"we_ia_{ver}")
+    with col_imp3:
+        we["impact_villains"] = st.text_area("👁️ 對反派/高維存在的波及與反制方案", value=we.get("impact_villains", ""), height=120, key=f"we_iv_{ver}")
+
+    btn_sim_event = st.button("🎲 點此讓 AI 自動推演『大事件對全場角色的連鎖衝擊』", type="primary", use_container_width=True, key=f"sim_ev_btn_{ver}")
+
+# ---------------- Tab 3: 伏筆智庫與進度鎖 ----------------
+with tab_foreshadow_hub:
+    st.subheader("🔮 伏筆智庫與階段控制面板")
     
     with st.expander("🎯 點此開啟【AI 伏筆靈感定向發想面板】", expanded=True):
         col_f_dir1, col_f_dir2 = st.columns([1, 2])
         with col_f_dir1:
-            f_type_selected = st.selectbox(
-                "🏷️ 指定伏筆類型",
-                ["隨機發想 (不限題材)", "🎒 隨身道具/古典物品類", "🏚️ 車廂環境/異象類", "👥 配角秘密/身體異變類", "🔒 鐵律漏洞/高維真相類"],
-                key=f"f_type_{ver}"
-            )
+            f_type_selected = st.selectbox("🏷️ 指定伏筆類型", ["隨機發想 (不限題材)", "🎒 隨身道具/古典物品類", "🏚️ 車廂環境/異象類", "👥 配角秘密/身體異變類", "🔒 鐵律漏洞/高維真相類"], key=f"f_type_{ver}")
         with col_f_dir2:
-            f_custom_prompt = st.text_input(
-                "💬 輸入具體發想方向或關鍵字 (選填)",
-                placeholder="例如：第九節餐車廂憑空出現的純銀藥盒，可延遲反噬聲音污染...",
-                key=f"f_custom_{ver}"
-            )
+            f_custom_prompt = st.text_input("💬 輸入具體發想方向或關鍵字 (選填)", placeholder="例如：第九節餐車廂憑空出現的純銀藥盒，可延遲反噬聲音污染...", key=f"f_custom_{ver}")
 
     col_f_t, col_f_a1, col_f_a2 = st.columns([2, 1, 1])
     with col_f_t: st.markdown("### 📜 全書伏筆追蹤清單")
-    
     with col_f_a1:
         if st.button("➕ 手動新增伏筆", key=f"add_f_btn_{ver}", use_container_width=True):
-            new_f_id = f"f_{datetime.now().strftime('%M%S%f')}"
             app_data.setdefault("foreshadowing_list", []).append({
-                "id": new_f_id,
-                "content": "新伏筆表面現象...",
-                "progress": "0% (剛埋下/僅現象)",
-                "status": "未解答",
-                "current_stage_goal": "僅維持現象描寫，絕對不可解開或劇透！",
-                "truth": "背後隱藏的真實真相..."
+                "id": f"f_{datetime.now().strftime('%M%S%f')}", "content": "新伏筆表面現象...", "progress": "0% (剛埋下/僅現象)", "status": "未解答", "current_stage_goal": "僅維持現象描寫，絕對不可解開！", "truth": "背後隱藏真相..."
             })
             st.rerun()
-
     with col_f_a2:
         btn_ai_f = st.button("🤖 依指定方向發想伏筆", type="primary", key=f"ai_gen_f_btn_{ver}", use_container_width=True)
 
     f_list = app_data.get("foreshadowing_list", [])
-    
     if not f_list:
-        st.info("💡 目前尚無紀錄中的伏筆。點擊『➕ 手動新增伏筆』直接貼上你的設計，或用『🤖 依指定方向發想伏筆』！")
+        st.info("💡 目前尚無紀錄中的伏筆。手動新增或使用 AI 定向發想！")
     else:
         tab_f1, tab_f2, tab_f3 = st.tabs(["📌 待解答/埋下中 (0%-20%)", "🔄 揭露中/推演中 (50%-80%)", "✅ 已完全回收 (100%)"])
-        
         delete_target_id = None
-        status_options = ["待解答 (0%-20%)", "揭露中/推演中 (50%-80%)", "已完全回收 (100%)"]
         progress_opts = ["0% (剛埋下/僅現象)", "20% (發現甜頭/微小異常)", "50% (產生第一層誤解/疑心)", "80% (假真相/第一重反轉)", "100% (完全回收/終極真相)"]
         
         for f_idx, f_item in enumerate(f_list):
             f_id = f_item.get("id", f"f_{f_idx}")
-            status_str = f_item.get("status", "待解答")
             progress_str = f_item.get("progress", "0% (剛埋下/僅現象)")
-            
-            if "100%" in progress_str or "回收" in status_str or "已解答" in status_str:
-                target_tab = tab_f3
-            elif "50%" in progress_str or "80%" in progress_str or "揭露" in status_str or "推演" in status_str:
-                target_tab = tab_f2
-            else:
-                target_tab = tab_f1
+            target_tab = tab_f3 if ("100%" in progress_str or "回收" in f_item.get("status", "")) else (tab_f2 if ("50%" in progress_str or "80%" in progress_str) else tab_f1)
 
             with target_tab:
                 title_preview = f_item.get('content', '未命名伏筆')
@@ -301,515 +255,269 @@ with tab_foreshadow:
                 
                 with st.expander(f"🔮 伏筆：{title_preview} 【進度：{progress_str}】", expanded=True):
                     f_item['content'] = st.text_input("📍 伏筆表面現象/描寫細節", value=f_item.get('content', ''), key=f"fc_{f_id}_{ver}")
-                    
                     col_fs1, col_fs2 = st.columns([1, 2])
                     with col_fs1:
-                        p_idx = progress_opts.index(progress_str) if progress_str in progress_opts else 0
-                        f_item['progress'] = st.selectbox("📊 解開進度鎖", progress_opts, index=p_idx, key=f"fp_{f_id}_{ver}")
+                        f_item['progress'] = st.selectbox("📊 解開進度鎖", progress_opts, index=progress_opts.index(progress_str) if progress_str in progress_opts else 0, key=f"fp_{f_id}_{ver}")
                     with col_fs2:
                         f_item['status'] = st.text_input("⏱️ 詳細狀態/預計解答章節", value=f_item.get('status', '未解答'), key=f"fs_{f_id}_{ver}")
 
-                    f_item['current_stage_goal'] = st.text_area(
-                        "🎯 本章允許揭露的邊界 (告訴 AI 本章只能寫到哪，嚴禁越界)", 
-                        value=f_item.get('current_stage_goal', '僅維持現象描寫，絕對不可解開或劇透！'), 
-                        height=65, 
-                        key=f"fcg_{f_id}_{ver}"
-                    )
-
-                    f_item['truth'] = st.text_area("🔒 終極隱藏真相 (未達 100% 前 AI 嚴禁在文中劇透)", value=f_item.get('truth', ''), height=80, key=f"ft_{f_id}_{ver}")
-                    
-                    if st.button("🗑️ 刪除此伏筆", key=f"fd_{f_id}_{ver}"):
-                        delete_target_id = f_id
+                    f_item['current_stage_goal'] = st.text_area("🎯 本章允許揭露的邊界 (嚴禁越界)", value=f_item.get('current_stage_goal', '僅維持現象描寫，絕對不可解開！'), height=65, key=f"fcg_{f_id}_{ver}")
+                    f_item['truth'] = st.text_area("🔒 終極隱藏真相 (未達 100% 前嚴禁劇透)", value=f_item.get('truth', ''), height=80, key=f"ft_{f_id}_{ver}")
+                    if st.button("🗑️ 刪除此伏筆", key=f"fd_{f_id}_{ver}"): delete_target_id = f_id
 
         if delete_target_id:
             app_data["foreshadowing_list"] = [item for item in app_data["foreshadowing_list"] if item.get("id") != delete_target_id]
             st.rerun()
 
-# ---------------- Tab 3: 世界觀與地圖庫 ----------------
-with tab_world:
-    st.subheader("🌌 全書世界觀與地圖設定")
+# ---------------- Tab 4: 世界觀、地圖與案件牆 ----------------
+with tab_world_hub:
+    st.subheader("🌌 世界觀、地圖與戰術案件牆")
     
     col_w1, col_w2 = st.columns(2)
-    with col_w1:
-        app_data["book_title"] = st.text_input("全書書名", value=app_data.get("book_title", ""), key=f"bt_{ver}")
-    with col_w2:
-        app_data["book_theme"] = st.text_input("題材風格", value=app_data.get("book_theme", ""), key=f"bth_{ver}")
-    
-    app_data["book_overall_secret"] = st.text_area("🔒 全書終局真相", value=app_data.get("book_overall_secret", ""), height=100, key=f"bos_{ver}")
-    
+    with col_w1: app_data["book_title"] = st.text_input("全書書名", value=app_data.get("book_title", ""), key=f"bt_{ver}")
+    with col_w2: app_data["book_theme"] = st.text_input("題材風格", value=app_data.get("book_theme", ""), key=f"bth_{ver}")
+    app_data["book_overall_secret"] = st.text_area("🔒 全書終局真相 (最高機密)", value=app_data.get("book_overall_secret", ""), height=80, key=f"bos_{ver}")
+
     st.divider()
-    col_loc_t, col_loc_a = st.columns([3, 1])
-    with col_loc_t: st.subheader("🗺️ 區域與地圖庫")
-    with col_loc_a:
+    sub_w1, sub_w2 = st.tabs(["🗺️ 區域與地圖庫", "🎒 道具庫與鐵律案件牆"])
+    
+    with sub_w1:
         if st.button("➕ 新增區域", key=f"add_loc_btn_{ver}"):
-            new_id = f"loc_{datetime.now().strftime('%M%S%f')}"
-            app_data.setdefault("location_list", []).append({
-                "id": new_id, "name": "新區域", "scope": "適用範圍", "visual_style": "", "physics_detail": "", "local_rules": ""
-            })
+            app_data.setdefault("location_list", []).append({"id": f"loc_{datetime.now().strftime('%M%S%f')}", "name": "新區域", "scope": "", "visual_style": "", "physics_detail": "", "local_rules": ""})
             st.rerun()
+        loc_del_id = None
+        for loc_idx, loc in enumerate(app_data.get("location_list", [])):
+            loc_id = loc.get("id", f"loc_{loc_idx}")
+            with st.expander(f"📍 {loc.get('name', '區域')} ({loc.get('scope', '')})", expanded=True):
+                loc['name'] = st.text_input("區域名稱", value=loc.get('name', ''), key=f"loc_n_{loc_id}_{ver}")
+                loc['scope'] = st.text_input("適用範圍", value=loc.get('scope', ''), key=f"loc_sc_{loc_id}_{ver}")
+                loc['visual_style'] = st.text_area("🏛️ 視覺建築特色", value=loc.get('visual_style', ''), key=f"loc_vs_{loc_id}_{ver}", height=60)
+                loc['physics_detail'] = st.text_area("⚙️ 環境與物理異常", value=loc.get('physics_detail', ''), key=f"loc_pd_{loc_id}_{ver}", height=60)
+                loc['local_rules'] = st.text_area("🚫 區域專屬禁忌", value=loc.get('local_rules', ''), key=f"loc_lr_{loc_id}_{ver}", height=60)
+                if st.button("🗑️ 刪除區域", key=f"loc_d_{loc_id}_{ver}"): loc_del_id = loc_id
+        if loc_del_id: app_data["location_list"] = [l for l in app_data["location_list"] if l.get("id") != loc_del_id]; st.rerun()
 
-    loc_list = app_data.get("location_list", [])
-    loc_del_id = None
-    for loc_idx, loc in enumerate(loc_list):
-        loc_id = loc.get("id", f"loc_{loc_idx}")
-        with st.expander(f"📍 {loc.get('name', '區域')} ({loc.get('scope', '')})", expanded=True):
-            loc['name'] = st.text_input("區域名稱", value=loc.get('name', ''), key=f"loc_n_{loc_id}_{ver}")
-            loc['scope'] = st.text_input("適用範圍", value=loc.get('scope', ''), key=f"loc_sc_{loc_id}_{ver}")
-            loc['visual_style'] = st.text_area("🏛️ 視覺與建築特色", value=loc.get('visual_style', ''), key=f"loc_vs_{loc_id}_{ver}", height=60)
-            loc['physics_detail'] = st.text_area("⚙️ 環境與物理異常", value=loc.get('physics_detail', ''), key=f"loc_pd_{loc_id}_{ver}", height=60)
-            loc['local_rules'] = st.text_area("🚫 區域專屬禁忌", value=loc.get('local_rules', ''), key=f"loc_lr_{loc_id}_{ver}", height=60)
-            if st.button("🗑️ 刪除此區域", key=f"loc_d_{loc_id}_{ver}"):
-                loc_del_id = loc_id
-    if loc_del_id:
-        app_data["location_list"] = [l for l in app_data["location_list"] if l.get("id") != loc_del_id]
-        st.rerun()
+    with sub_w2:
+        col_i_t, col_i_a = st.columns([3, 1])
+        with col_i_t: st.markdown("#### 📦 可用道具庫")
+        with col_i_a:
+            if st.button("➕ 新增道具", key=f"add_it_btn_{ver}"):
+                app_data.setdefault("items_inventory", []).append({"id": f"it_{datetime.now().strftime('%M%S%f')}", "name": "新道具", "status": "", "owner": ""})
+                st.rerun()
+        it_del_id = None
+        for it_idx, item in enumerate(app_data.get("items_inventory", [])):
+            item_id = item.get("id", f"it_{it_idx}")
+            with st.expander(f"📦 {item.get('name', '道具')} ({item.get('owner', '')})", expanded=True):
+                item['name'] = st.text_input("名稱", value=item.get('name', ''), key=f"it_n_{item_id}_{ver}")
+                item['owner'] = st.text_input("持有者", value=item.get('owner', ''), key=f"it_o_{item_id}_{ver}")
+                item['status'] = st.text_input("狀態", value=item.get('status', ''), key=f"it_s_{item_id}_{ver}")
+                if st.button("🗑️ 刪除道具", key=f"it_d_{item_id}_{ver}"): it_del_id = item_id
+        if it_del_id: app_data["items_inventory"] = [i for i in app_data["items_inventory"] if i.get("id") != it_del_id]; st.rerun()
 
-# ---------------- Tab 4: 道具與規則案件牆 ----------------
-with tab_items:
-    st.subheader("🎒 道具庫與案件牆")
+        st.divider()
+        st.markdown("#### ✅ 已驗證鐵律")
+        r_del_id = None
+        for r_idx, r in enumerate(app_data.get("confirmed_rules_list", [])):
+            r_id = r.get("id", f"r_{r_idx}")
+            col_rx, col_rd = st.columns([5, 1])
+            with col_rx: r['content'] = st.text_input(f"鐵律 {r_idx+1}", value=r.get('content', ''), key=f"r_val_{r_id}_{ver}", label_visibility="collapsed")
+            with col_rd:
+                if st.button("🗑️", key=f"r_del_{r_id}_{ver}"): r_del_id = r_id
+        if r_del_id: app_data["confirmed_rules_list"] = [r for r in app_data["confirmed_rules_list"] if r.get("id") != r_del_id]; st.rerun()
+
+# ---------------- Tab 5: 角色與系統存檔管理 ----------------
+with tab_system_hub:
+    st.subheader("👥 角色卡片庫、雙文風與系統存檔")
     
-    col_it_t, col_it_a = st.columns([3, 1])
-    with col_it_t: st.subheader("📦 可用道具庫")
-    with col_it_a:
-        if st.button("➕ 新增道具", key=f"add_it_btn_{ver}"):
-            new_id = f"it_{datetime.now().strftime('%M%S%f')}"
-            app_data.setdefault("items_inventory", []).append({"id": new_id, "name": "新道具", "status": "", "owner": ""})
-            st.rerun()
-
-    items_list = app_data.get("items_inventory", [])
-    it_del_id = None
-    for it_idx, item in enumerate(items_list):
-        item_id = item.get("id", f"it_{it_idx}")
-        with st.expander(f"📦 {item.get('name', '道具')} ({item.get('owner', '')})", expanded=True):
-            item['name'] = st.text_input("名稱", value=item.get('name', ''), key=f"it_n_{item_id}_{ver}")
-            item['owner'] = st.text_input("持有者", value=item.get('owner', ''), key=f"it_o_{item_id}_{ver}")
-            item['status'] = st.text_input("狀態", value=item.get('status', ''), key=f"it_s_{item_id}_{ver}")
-            if st.button("🗑️ 刪除此道具", key=f"it_d_{item_id}_{ver}"):
-                it_del_id = item_id
-    if it_del_id:
-        app_data["items_inventory"] = [i for i in app_data["items_inventory"] if i.get("id") != it_del_id]
-        st.rerun()
-
-    st.divider()
+    sub_s1, sub_s2, sub_s3 = st.tabs(["👥 角色卡片庫", "🎭 雙神級作者文風", "💾 API 設定與 JSON 存檔"])
     
-    col_r_t, col_r_a = st.columns([3, 1])
-    with col_r_t: st.subheader("✅ 已驗證鐵律")
-    with col_r_a:
-        if st.button("➕ 新增鐵律", key=f"add_r_btn_{ver}"):
-            new_id = f"r_{datetime.now().strftime('%M%S%f')}"
-            app_data.setdefault("confirmed_rules_list", []).append({"id": new_id, "content": ""})
-            st.rerun()
-            
-    rules_list = app_data.get("confirmed_rules_list", [])
-    r_del_id = None
-    for r_idx, r in enumerate(rules_list):
-        r_id = r.get("id", f"r_{r_idx}")
-        col_rx, col_rd = st.columns([5, 1])
-        with col_rx: r['content'] = st.text_input(f"鐵律 {r_idx+1}", value=r.get('content', ''), key=f"r_val_{r_id}_{ver}", label_visibility="collapsed")
-        with col_rd:
-            if st.button("🗑️", key=f"r_del_{r_id}_{ver}"):
-                r_del_id = r_id
-    if r_del_id:
-        app_data["confirmed_rules_list"] = [r for r in app_data["confirmed_rules_list"] if r.get("id") != r_del_id]
-        st.rerun()
-
-    col_cl_t, col_cl_a = st.columns([3, 1])
-    with col_cl_t: st.subheader("🔍 關鍵線索庫")
-    with col_cl_a:
-        if st.button("➕ 新增線索", key=f"add_cl_btn_{ver}"):
-            new_id = f"cl_{datetime.now().strftime('%M%S%f')}"
-            app_data.setdefault("clues_list", []).append({"id": new_id, "content": ""})
-            st.rerun()
-
-    clues_list = app_data.get("clues_list", [])
-    cl_del_id = None
-    for cl_idx, cl in enumerate(clues_list):
-        cl_id = cl.get("id", f"cl_{cl_idx}")
-        col_clx, col_cld = st.columns([5, 1])
-        with col_clx: cl['content'] = st.text_input(f"線索 {cl_idx+1}", value=cl.get('content', ''), key=f"cl_val_{cl_id}_{ver}", label_visibility="collapsed")
-        with col_cld:
-            if st.button("🗑️", key=f"cl_del_{cl_id}_{ver}"):
-                cl_del_id = cl_id
-    if cl_del_id:
-        app_data["clues_list"] = [c for c in app_data["clues_list"] if c.get("id") != cl_del_id]
-        st.rerun()
-
-# ---------------- Tab 5: 角色卡片庫 ----------------
-with tab_chars:
-    col_char_t, col_char_a = st.columns([3, 1])
-    with col_char_t: st.subheader("👥 角色卡片庫")
-    with col_char_a:
+    with sub_s1:
         if st.button("➕ 新增角色", key=f"add_c_btn_{ver}"):
-            new_c_id = f"c_{datetime.now().strftime('%M%S%f')}"
             app_data.setdefault("character_list", []).append({
-                "id": new_c_id, "name": "新角色", "category": "當前在場/主要角色", 
-                "faction": "", "public_relation": "", "hidden_motive": "",
-                "summary": "", "personality": "", "status": "", "sanity": "100%", "speech_style": "", "dialogue_example": ""
+                "id": f"c_{datetime.now().strftime('%M%S%f')}", "name": "新角色", "category": "當前在場/主要角色", "faction": "", "public_relation": "", "hidden_motive": "", "summary": "", "personality": "", "status": "", "sanity": "100%", "speech_style": "", "dialogue_example": ""
             })
             st.rerun()
-
-    tab_c1, tab_c2, tab_c3 = st.tabs(["🔥 在場/主要", "📡 場外/通訊", "🪦 離場/變異"])
-    categories = {"當前在場/主要角色": tab_c1, "場外/通訊角色": tab_c2, "離場/變異/歷史角色": tab_c3}
-    
-    char_list = app_data.get("character_list", [])
-    c_del_id = None
-    
-    for c_idx, char in enumerate(char_list):
-        c_id = char.get("id", f"c_{c_idx}")
-        c_cat = char.get('category', '當前在場/主要角色')
-        target_tab = categories.get(c_cat, tab_c1)
         
-        with target_tab:
-            with st.expander(f"👤 {char.get('name', '角色')} ({char.get('faction', '無陣營')})", expanded=True):
-                char['name'] = st.text_input("名稱", value=char.get('name', ''), key=f"c_n_{c_id}_{ver}")
-                char['category'] = st.selectbox("📌 歸類分頁", ["當前在場/主要角色", "場外/通訊角色", "離場/變異/歷史角色"], index=["當前在場/主要角色", "場外/通訊角色", "離場/變異/歷史角色"].index(c_cat) if c_cat in ["當前在場/主要角色", "場外/通訊角色", "離場/變異/歷史角色"] else 0, key=f"c_cat_{c_id}_{ver}")
-                char['faction'] = st.text_input("⚔️ 勢力/陣營", value=char.get('faction', ''), key=f"c_f_{c_id}_{ver}")
-                char['public_relation'] = st.text_input("🤝 表面關係", value=char.get('public_relation', ''), key=f"c_pr_{c_id}_{ver}")
-                char['hidden_motive'] = st.text_input("🔒 隱藏動機/暗流", value=char.get('hidden_motive', ''), key=f"c_hm_{c_id}_{ver}")
-                char['summary'] = st.text_input("簡介", value=char.get('summary', ''), key=f"c_s_{c_id}_{ver}")
-                char['personality'] = st.text_input("性格", value=char.get('personality', ''), key=f"c_p_{c_id}_{ver}")
-                char['status'] = st.text_input("🩸 生理狀態", value=char.get('status', ''), key=f"c_st_{c_id}_{ver}")
-                char['sanity'] = st.text_input("🧠 理智度 (SAN值)", value=char.get('sanity', '100%'), key=f"c_sn_{c_id}_{ver}")
-                char['speech_style'] = st.text_input("口吻風格", value=char.get('speech_style', ''), key=f"c_sp_{c_id}_{ver}")
-                char['dialogue_example'] = st.text_input("💬 代表台詞", value=char.get('dialogue_example', ''), key=f"c_dg_{c_id}_{ver}")
-                if st.button("🗑️ 刪除角色", key=f"c_dl_{c_id}_{ver}"):
-                    c_del_id = c_id
-    if c_del_id:
-        app_data["character_list"] = [c for c in app_data["character_list"] if c.get("id") != c_del_id]
-        st.rerun()
+        tab_c1, tab_c2, tab_c3 = st.tabs(["🔥 在場/主要", "📡 場外/通訊", "🪦 離場/變異"])
+        categories = {"當前在場/主要角色": tab_c1, "場外/通訊角色": tab_c2, "離場/變異/歷史角色": tab_c3}
+        c_del_id = None
+        
+        for c_idx, char in enumerate(app_data.get("character_list", [])):
+            c_id = char.get("id", f"c_{c_idx}")
+            c_cat = char.get('category', '當前在場/主要角色')
+            with categories.get(c_cat, tab_c1):
+                with st.expander(f"👤 {char.get('name', '角色')} ({char.get('faction', '無陣營')})", expanded=True):
+                    char['name'] = st.text_input("名稱", value=char.get('name', ''), key=f"c_n_{c_id}_{ver}")
+                    char['category'] = st.selectbox("📌 歸類分頁", ["當前在場/主要角色", "場外/通訊角色", "離場/變異/歷史角色"], index=["當前在場/主要角色", "場外/通訊角色", "離場/變異/歷史角色"].index(c_cat) if c_cat in ["當前在場/主要角色", "場外/通訊角色", "離場/變異/歷史角色"] else 0, key=f"c_cat_{c_id}_{ver}")
+                    char['faction'] = st.text_input("⚔️ 勢力/陣營", value=char.get('faction', ''), key=f"c_f_{c_id}_{ver}")
+                    char['status'] = st.text_input("🩸 生理狀態", value=char.get('status', ''), key=f"c_st_{c_id}_{ver}")
+                    char['sanity'] = st.text_input("🧠 理智度 (SAN值)", value=char.get('sanity', '100%'), key=f"c_sn_{c_id}_{ver}")
+                    char['summary'] = st.text_input("簡介", value=char.get('summary', ''), key=f"c_s_{c_id}_{ver}")
+                    char['personality'] = st.text_input("性格", value=char.get('personality', ''), key=f"c_p_{c_id}_{ver}")
+                    char['hidden_motive'] = st.text_input("🔒 隱藏動機", value=char.get('hidden_motive', ''), key=f"c_hm_{c_id}_{ver}")
+                    if st.button("🗑️ 刪除角色", key=f"c_dl_{c_id}_{ver}"): c_del_id = c_id
+        if c_del_id: app_data["character_list"] = [c for c in app_data["character_list"] if c.get("id") != c_del_id]; st.rerun()
 
-# ---------------- Tab 6: API 設定與存檔管理 ----------------
-with tab_system:
-    st.subheader("💾 系統設定與存檔管理")
-    
-    st.markdown("### 🔑 API Key 設定")
-    env_api_key = os.environ.get("GEMINI_API_KEY", "")
-    api_key_input = st.text_input("輸入 Gemini API Key", value=env_api_key, type="password", key=f"api_{ver}")
-    active_api_key = api_key_input if api_key_input else env_api_key
-    
-    st.divider()
-    st.markdown("### 📤 匯入歷史設定檔 (.json)")
-    uploaded_file = st.file_uploader("選擇上傳 JSON 存檔", type=["json", "txt"], key=f"uploader_{ver}")
+    with sub_s2:
+        st.markdown("#### 🎭 雙神級作者文風控制")
+        app_data["style_suspense"] = st.text_area("🌊 懸疑/氛圍/對話文風 (遠瞳《深海餘燼》)", value=app_data.get("style_suspense", ""), height=100, key=f"ss_{ver}")
+        app_data["style_battle"] = st.text_area("⚔️ 戰鬥/生死博弈文風 (那一只蚊子《輪迴樂園》)", value=app_data.get("style_battle", ""), height=100, key=f"sb_{ver}")
 
-    if uploaded_file is not None and uploaded_file.name != st.session_state["last_uploaded_filename"]:
-        try:
-            loaded_data = json.load(uploaded_file)
-            st.session_state["app_data"] = loaded_data
-            st.session_state["last_uploaded_filename"] = uploaded_file.name
-            st.session_state["upload_ver"] += 1
-            st.success("✅ 成功載入歷史紀錄！畫面與輸入框已強制同步更新！")
-            st.rerun()
-        except Exception as e:
-            st.error(f"檔案格式錯誤：{str(e)}")
+    with sub_s3:
+        st.markdown("#### 🔑 API Key 與存檔管理")
+        env_api_key = os.environ.get("GEMINI_API_KEY", "")
+        api_key_input = st.text_input("Gemini API Key", value=env_api_key, type="password", key=f"api_{ver}")
+        active_api_key = api_key_input if api_key_input else env_api_key
+        
+        st.divider()
+        uploaded_file = st.file_uploader("匯入歷史設定檔 (.json)", type=["json", "txt"], key=f"uploader_{ver}")
+        if uploaded_file is not None and uploaded_file.name != st.session_state["last_uploaded_filename"]:
+            try:
+                st.session_state["app_data"] = json.load(uploaded_file)
+                st.session_state["last_uploaded_filename"] = uploaded_file.name
+                st.session_state["upload_ver"] += 1
+                st.success("✅ 成功載入歷史紀錄！")
+                st.rerun()
+            except Exception as e: st.error(f"檔案格式錯誤：{str(e)}")
 
-    st.divider()
-    st.markdown("### 📥 下載當前全書設定檔 (.json)")
-    app_data["saved_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    json_string = json.dumps(app_data, ensure_ascii=False, indent=2)
-    filename = f"{app_data.get('book_title', '小說')}_{app_data.get('current_vol_title', '第一集')}_第{app_data.get('current_chap', 1)}章.json"
+        st.divider()
+        app_data["saved_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        json_string = json.dumps(app_data, ensure_ascii=False, indent=2)
+        st.download_button("📥 下載當前全書設定檔 (.json)", data=json_string, file_name=f"{app_data.get('book_title', '小說')}_{app_data.get('current_vol_title', '第一集')}_第{app_data.get('current_chap', 1)}章.json", mime="application/json", use_container_width=True, key=f"dl_btn_{ver}")
 
-    st.download_button(
-        label="📥 下載當前設定檔 (.json)",
-        data=json_string,
-        file_name=filename,
-        mime="application/json",
-        use_container_width=True,
-        key=f"dl_btn_{ver}"
-    )
+# ================= 5. 後端 Prompt 與 API 邏輯 (包含世界大事件) =================
+locations_text = "".join([f"【{l.get('name', '')} ({l.get('scope', '')})】\n• 建築特色：{l.get('visual_style', '')}\n• 環境異常：{l.get('physics_detail', '')}\n• 區域規則：{l.get('local_rules', '')}\n---\n" for l in app_data.get("location_list", [])])
+items_text = "".join([f"• {i.get('name', '')} (持有:{i.get('owner', '')}): {i.get('status', '')}\n" for i in app_data.get("items_inventory", [])])
+rules_text = "".join([f"{idx+1}. {r.get('content', '')}\n" for idx, r in enumerate(app_data.get("confirmed_rules_list", []))])
+updated_characters_text = "".join([f"【{c.get('name', '')} ({c.get('faction', '')})】\n• 簡介：{c.get('summary', '')}\n• 狀態：{c.get('status', '')}\n• 隱藏動態：{c.get('hidden_motive', '')}\n---\n" for c in app_data.get("character_list", [])])
+foreshadowing_context = "".join([f"• [伏筆 ID: {f.get('id')}] 表面現象描述：{f.get('content')}\n  - 📍 當前解開進度限制：【{f.get('progress', f.get('status', '0%'))}】\n  - 🎯 本章允許揭露邊界：{f.get('current_stage_goal', '僅維持現象描寫，絕對不可解開！')}\n  - 🔒 終極隱藏真相（未達 100% 嚴禁劇透）：{f.get('truth')}\n----------------------------------------\n" for f in app_data.get("foreshadowing_list", [])])
 
-# ================= 自動構建 Prompt 文字 =================
-locations_text = "".join([
-    f"【{l.get('name', '')} ({l.get('scope', '')})】\n• 建築特色：{l.get('visual_style', '')}\n• 環境異常：{l.get('physics_detail', '')}\n• 區域規則：{l.get('local_rules', '')}\n---\n"
-    for l in app_data.get("location_list", [])
-])
-
-items_text = "".join([
-    f"• {i.get('name', '')} (持有:{i.get('owner', '')}): {i.get('status', '')}\n"
-    for i in app_data.get("items_inventory", [])
-])
-
-rules_text = "".join([
-    f"{idx+1}. {r.get('content', '')}\n"
-    for idx, r in enumerate(app_data.get("confirmed_rules_list", []))
-])
-
-updated_characters_text = "".join([
-    f"【{c.get('name', '')} ({c.get('faction', '')})】\n• 簡介：{c.get('summary', '')}\n• 狀態：{c.get('status', '')}\n---\n"
-    for c in app_data.get("character_list", [])
-])
-
-foreshadowing_context = "".join([
-    f"• [伏筆 ID: {f.get('id')}] 表面現象描述：{f.get('content')}\n"
-    f"  - 📍 當前解開進度限制：【{f.get('progress', f.get('status', '0%'))}】\n"
-    f"  - 🎯 本章允許揭露的邊界/目標：{f.get('current_stage_goal', '僅維持現象描寫，絕對不可解開或劇透！')}\n"
-    f"  - 🔒 終極隱藏真相（⚠️ 極重要：尚未達到 100% 前，絕對嚴禁在內文中透露以下任何字眼或答案）：\n"
-    f"    {f.get('truth')}\n"
-    f"----------------------------------------\n"
-    for f in app_data.get("foreshadowing_list", [])
-])
+# 世界大事件 Context
+we_info = app_data["world_event"]
+world_event_context = f"""
+【🌪️ 當前觸發的世界線大事件（最高優先級背景）】
+• 事件名稱：{we_info.get('title')}
+• 波及範圍：{we_info.get('scope')}
+• 狀況描述：{we_info.get('description')}
+• 對主角（蘇默）的決策影響：{we_info.get('impact_hero')}
+• 對配角/盟友的心理波動影響：{we_info.get('impact_allies')}
+• 對反派/高維存在的波及：{we_info.get('impact_villains')}
+* 寫作特別指令：本章情節與角色的心理反應【必須高度受此大事件牽引與逼迫】！
+"""
 
 enable_f = app_data.get("enable_new_foreshadow", True)
 f_count = int(app_data.get("new_foreshadow_count", 1))
 f_blacklist = app_data.get("foreshadow_black_list", "")
+foreshadow_instruction = f"請撰寫本章內文，同時在 new_foreshadowing 中精準列出 {f_count} 個全新伏筆細節。絕對禁止與既有伏筆同質化，避開黑名單：\n{f_blacklist}" if (enable_f and f_count > 0) else "本章專注於推進劇情，嚴禁埋下新伏筆！請將 new_foreshadowing 設為 []。"
 
-if enable_f and f_count > 0:
-    foreshadow_instruction = f"""
-請撰寫本章內文，同時在 new_foreshadowing 中精準列出你在此章寫作時順手埋下的 {f_count} 個全新伏筆細節（包含表面現象、進度標籤如『0% (剛埋下/僅現象)』、預計解答章節與隱藏真相）。
+# API 邏輯 0：推演大事件連鎖衝擊
+if btn_sim_event:
+    if not active_api_key: st.error("❌ 請先輸入 Gemini API Key！")
+    else:
+        with st.spinner("🎲 AI 正在進行世界大事件對全場角色的連鎖衝擊推演..."):
+            try:
+                genai.configure(api_key=active_api_key)
+                sim_prompt = f"你是一位頂級小說執行導演。請根據當前爆發的世界大事件【{we_info.get('title')}】，自動推演對『主角衝擊』、『配角心態與背叛概率』與『反派反應』的連鎖動態：\n\n【大事件內容】\n{we_info.get('description')}"
+                sim_schema = {"type": "OBJECT", "properties": {"impact_hero": {"type": "STRING"}, "impact_allies": {"type": "STRING"}, "impact_villains": {"type": "STRING"}}, "required": ["impact_hero", "impact_allies", "impact_villains"]}
+                sim_model = genai.GenerativeModel("gemini-flash-latest")
+                sim_res = json.loads(sim_model.generate_content(sim_prompt, generation_config={"response_mime_type": "application/json", "response_schema": sim_schema}).text)
+                we["impact_hero"] = sim_res.get("impact_hero", "")
+                we["impact_allies"] = sim_res.get("impact_allies", "")
+                we["impact_villains"] = sim_res.get("impact_villains", "")
+                st.success("🎉 大事件連鎖推演完成！已自動填入各陣營影響欄位中！"); st.rerun()
+            except Exception as e: st.error(f"推演失敗: {str(e)}")
 
-【🔒 伏筆防重複極嚴格指令】
-1. 請審視上方【目前已記錄的長線伏筆】，絕對禁止創造與既有伏筆同質化、類似道具或重複現象的新伏筆！
-2. 必須嚴格避開以下【黑名單套路】：
-{f_blacklist}
-"""
-else:
-    foreshadow_instruction = "本章專注於推進劇情與回收舊伏筆，嚴禁埋下任何新伏筆！請務必將 new_foreshadowing 欄位回傳空陣列 []。"
-
-# ================= 智慧邏輯 1：分鏡腳本拆解 =================
+# API 邏輯 1：導演腳本
 if btn_director:
-    if not active_api_key:
-        st.error("❌ 請先輸入 Gemini API Key！")
+    if not active_api_key: st.error("❌ 請先輸入 Gemini API Key！")
     else:
-        with st.spinner("🎬 AI 導演正在進行大綱邏輯檢查與分鏡拆解..."):
+        with st.spinner("🎬 AI 導演進行大綱檢查與分鏡拆解中..."):
             try:
                 genai.configure(api_key=active_api_key)
-                dir_prompt = f"""
-你是一位極度嚴苛的懸疑小說執行導演與大綱審查員。請針對【{app_data.get('book_title')}】第 {app_data.get('current_chap')} 章的大綱規劃，進行『無聲鐵律衝突檢查』並拆解出『4 個具體鏡頭腳本』。
+                dir_prompt = f"你是一位極度嚴苛的懸疑小說執行導演。請針對【{app_data.get('book_title')}】第 {app_data.get('current_chap')} 章大綱與世界大事件【{we_info.get('title')}】，進行『無聲鐵律檢查』並拆解出『4 個具體鏡頭腳本』。\n\n{world_event_context}\n【鐵律】\n{rules_text}\n【大綱】\n{app_data.get('chapter_outline')}"
+                d_model = genai.GenerativeModel("gemini-flash-latest")
+                st.session_state["director_script"] = d_model.generate_content(dir_prompt).text
+                st.success("🎉 分鏡腳本拆解完成！"); st.rerun()
+            except Exception as e: st.error(f"拆解失敗: {str(e)}")
 
-【鐵律與環境】
-{rules_text}
-
-【本章大綱】
-{app_data.get('chapter_outline')}
-
-【請輸出以下 Markdown 導演報告】：
-1. 🛡️ **無聲鐵律邏輯檢查**（評估大綱有無角色開口、撞擊聲漏防等漏洞，並給出修正建議）
-2. 🎬 **4 個鏡頭分鏡拆解**（標明每個鏡頭的場景、視角主角體感、伏筆/道具切入點與情緒高潮）
-"""
-                target_model = "gemini-flash-latest"
-                try:
-                    d_model = genai.GenerativeModel(target_model)
-                except Exception:
-                    d_model = genai.GenerativeModel("gemini-3.5-flash")
-
-                d_res = d_model.generate_content(dir_prompt)
-                st.session_state["director_script"] = d_res.text
-                st.success("🎉 導演分鏡腳本拆解完成！請見上方展開區域。")
-                st.rerun()
-            except Exception as e:
-                st.error(f"拆解失敗: {str(e)}")
-
-# ================= 智慧邏輯 2：單獨靈感生成新伏筆 (支援定向發想) =================
+# API 邏輯 2：定向發想伏筆
 if btn_ai_f:
-    if not active_api_key:
-        st.error("❌ 請先輸入 Gemini API Key！")
+    if not active_api_key: st.error("❌ 請先輸入 Gemini API Key！")
     else:
-        with st.spinner("✨ Gemini 正在依據你指定的方向靈感發想新伏筆..."):
+        with st.spinner("✨ Gemini 正在依指定方向發想新伏筆..."):
             try:
                 genai.configure(api_key=active_api_key)
-                exist_f_text = "\n".join([f"• {f.get('content')} (真相: {f.get('truth')})" for f in app_data.get("foreshadowing_list", [])])
-                
-                user_direction_prompt = f"• 作者指定的伏筆類型：【{f_type_selected}】\n"
-                if f_custom_prompt.strip():
-                    user_direction_prompt += f"• 作者具體要求的關鍵字/靈感方向：【{f_custom_prompt.strip()}】\n"
+                ai_f_prompt = f"你是一位頂級小說架構師。請遵循作者要求的方向【{f_type_selected} | 關鍵字: {f_custom_prompt}】，為【{app_data.get('book_title')}】發想 1 個全新長線伏筆。絕不侷限於物理特性，可為感官錯覺或記憶污染。\n\n既有伏筆：\n{foreshadowing_context}\n黑名單：\n{f_blacklist}"
+                f_schema = {"type": "OBJECT", "properties": {"content": {"type": "STRING"}, "progress": {"type": "STRING"}, "status": {"type": "STRING"}, "current_stage_goal": {"type": "STRING"}, "truth": {"type": "STRING"}}, "required": ["content", "progress", "status", "current_stage_goal", "truth"]}
+                f_model = genai.GenerativeModel("gemini-flash-latest")
+                new_f_data = json.loads(f_model.generate_content(ai_f_prompt, generation_config={"response_mime_type": "application/json", "response_schema": f_schema}).text)
+                app_data.setdefault("foreshadowing_list", []).append({"id": f"f_{datetime.now().strftime('%M%S%f')}", "content": new_f_data.get("content", ""), "progress": new_f_data.get("progress", "0% (剛埋下/僅現象)"), "status": new_f_data.get("status", "待解答"), "current_stage_goal": new_f_data.get("current_stage_goal", "僅維持現象描寫！"), "truth": new_f_data.get("truth", "")})
+                st.success("🎉 定向伏筆發想完畢！已加入智庫！"); st.rerun()
+            except Exception as e: st.error(f"發想伏筆失敗: {str(e)}")
 
-                ai_f_prompt = f"""
-你是一位頂級懸疑/規則怪談小說架構師。請仔細閱讀全書背景，並【嚴格遵循作者指定的方向】，發想【1 個全新且絕不重複】的高質感長線伏筆。
-
-【全書背景】
-• 書名：{app_data.get('book_title')} ({app_data.get('book_theme')})
-• 真相：{app_data.get('book_overall_secret')}
-• 當前章節：第 {app_data.get('current_chap')} 章
-• 既有伏筆：{exist_f_text if exist_f_text else "無"}
-• 🚫 黑名單套路：{f_blacklist}
-
-【🎯 作者最高優先級發想要求】
-{user_direction_prompt}
-
-【伏筆機制多樣性規範（⚠️ 極重要）】
-1. 伏筆機制【絕不局限於物理特性或科學推導】！可以包含：感官錯覺、記憶認知污染、心理暗示、宗教儀式感、時間悖論、人性選擇等多元維度。
-2. 表面現象 (content) 必須符合 20 世紀貴族列車氛圍，且為主角可觀察到的微小異常。
-3. 預設進度標籤設為『0% (剛埋下/僅現象)』。
-4. 隱藏真相 (truth) 必須具備驚人的反轉感，且能暗中呼應高維資訊互譯或神靈考驗。
-"""
-                f_schema = {
-                    "type": "OBJECT",
-                    "properties": {
-                        "content": {"type": "STRING"},
-                        "progress": {"type": "STRING"},
-                        "status": {"type": "STRING"},
-                        "current_stage_goal": {"type": "STRING"},
-                        "truth": {"type": "STRING"}
-                    },
-                    "required": ["content", "progress", "status", "current_stage_goal", "truth"]
-                }
-
-                target_model = "gemini-flash-latest"
-                try:
-                    f_model = genai.GenerativeModel(target_model)
-                except Exception:
-                    f_model = genai.GenerativeModel("gemini-3.5-flash")
-
-                f_response = f_model.generate_content(ai_f_prompt, generation_config={"response_mime_type": "application/json", "response_schema": f_schema})
-                new_f_data = json.loads(f_response.text)
-                
-                new_f_id = f"f_{datetime.now().strftime('%M%S%f')}"
-                app_data.setdefault("foreshadowing_list", []).append({
-                    "id": new_f_id,
-                    "content": new_f_data.get("content", ""),
-                    "progress": new_f_data.get("progress", "0% (剛埋下/僅現象)"),
-                    "status": new_f_data.get("status", "待解答"),
-                    "current_stage_goal": new_f_data.get("current_stage_goal", "僅維持現象描寫，絕對不可解開！"),
-                    "truth": new_f_data.get("truth", "")
-                })
-                st.success("🎉 定向伏筆發想完畢！已成功添加至伏筆庫！")
-                st.rerun()
-            except Exception as e:
-                st.error(f"發想伏筆失敗: {str(e)}")
-
-# ================= 智慧邏輯 3：直連 Gemini API 生成正文與雙文風控制 =================
+# API 邏輯 3：生成正文
 if generate_btn:
-    if not active_api_key:
-        st.error("❌ 找不到 Gemini API Key！請先在『💾 API 設定與存檔管理』頁面填入 Key。")
+    if not active_api_key: st.error("❌ 找不到 Gemini API Key！")
     else:
         pov_type = app_data.get("pov_type", "第一人稱")
         pov_character = app_data.get("pov_character", "蘇默")
-
-        if pov_type == "第一人稱":
-            perspective_instruction = f"""
-• 描寫視角：【第一人稱】
-• 限制要求：你現在就是角色【{pov_character}】！必須全程以【{pov_character}】的第一人稱『我』進行寫作。
-• 視角禁忌：嚴禁出現任何高維觀察者、系統監控日誌（如【監控端日誌】）、作者旁白或第三人稱視角。所有數據與狀態必須自然融入【{pov_character}】的個人體感與心理思考中。
-"""
-        else:
-            perspective_instruction = f"""
-• 描寫視角：【{pov_type}】(焦點角色：{pov_character})
-• 限制要求：請以專業小說敘事者（旁白）的視角進行描寫，圍繞主角【{pov_character}】的行動與所見所聞展開。
-• 視角禁忌：嚴禁輸出遊戲化/系統化的數據標籤，請將數據轉化為小說中的客觀環境描寫與角色身體反應細節。
-"""
-
+        perspective_instruction = f"• 描寫視角：【{pov_type}】(主角：{pov_character})，全程以其體感與思考展開，嚴禁出現遊戲數據或旁白感。"
         director_script_context = f"\n【🎬 導演分鏡腳本參考】\n{st.session_state['director_script']}\n" if st.session_state.get("director_script") else ""
 
         prompt = f"""
-你是一位頂級的懸疑 / 克蘇魯 / 規則怪談小說作家。請根據以下寫作風格要求、全書世界觀、區域設定與本章指令，為我撰寫小說最新一章的純內文。
+你是一位頂級懸疑/規則怪談小說家。請根據以下寫作風格、世界大事件與指令撰寫最新一章純內文。
 
-【🔥 最高優先級：雙神級作者寫作風格要求（嚴格執行）】
-1. 🌊 **懸疑/氛圍/對話描寫**：{app_data.get('style_suspense')}
-2. ⚔️ **戰鬥/生死博弈描寫**：{app_data.get('style_battle')}
-* 特別提醒：請專注於真實感官體感、心理描寫與氛圍營造，【切勿使用刻板公式化的物理教科書解說】。
+{world_event_context}
 
-【全書背景】
-• 書名：{app_data.get('book_title')} ({app_data.get('book_theme')})
-• 全書終局真相：{app_data.get('book_overall_secret')}
+【🔥 最高優先級風格要求】
+1. 🌊 懸疑氛圍：{app_data.get('style_suspense')}
+2. ⚔️ 戰鬥博弈：{app_data.get('style_battle')}
+* 切勿使用公式化物理教科書解說，注重真實感官體感！
 
-【區域與環境地圖設定】
+【全書與區域】
+• 書名：{app_data.get('book_title')} ({app_data.get('book_theme')}) | 真相：{app_data.get('book_overall_secret')}
 {locations_text}
+• 已驗證鐵律：\n{rules_text}
+• 道具庫：\n{items_text}
 
-【規則與線索案件牆】
-• 已驗證鐵律：
-{rules_text}
-• 當前可用道具庫：
-{items_text}
+【長線伏筆與進度鎖 (嚴禁提前解開未達100%的真相)】
+{foreshadowing_context}
 
-【目前已記錄的長線伏筆與進度鎖 (嚴禁提前解開未達 100% 的真相)】
-{foreshadowing_context if foreshadowing_context else "目前暫無紀錄中的伏筆。"}
-* 寫作特別規範：請嚴格審視上方伏筆的『當前解開進度限制』與『本章允許揭露的邊界』。當前寫作進度只能精準停留在該百分比！嚴禁提前洩漏『終極隱藏真相』中的任何底層原理、名詞或答案！
-
-【登場角色與複雜關係鏈】
+【登場角色】
 {updated_characters_text}
 
-【上一章銜接點】
-{app_data.get('previous_summary')}
+【銜接與大綱】
+• 上一章銜接：{app_data.get('previous_summary')}
 {director_script_context}
-【本章撰寫精準指令】
-• 當前章節：{app_data.get('current_vol_title')} 第 {app_data.get('current_chap')} 章
-• 本章大綱：{app_data.get('chapter_outline')}
+• 本章大綱 (第 {app_data.get('current_chap')} 章)：{app_data.get('chapter_outline')}
 • 目標字數：約 {app_data.get('target_chapter_words')} 字
 {perspective_instruction}
-• 時間與環境：{app_data.get('time_and_environment')}
-• 五感描寫重點：\n{app_data.get('sensory_details')}
-• 核心衝突：{app_data.get('scene_conflict')}
-• 認知大翻轉：{app_data.get('scene_turn')}
-• 必須包含元素：\n{app_data.get('must_include')}
-• 寫作禁忌 (Negative Prompt)：\n{app_data.get('writing_taboos')}
+• 寫作禁忌：\n{app_data.get('writing_taboos')}
 
-【極重要排版規範】
-撰寫 novel_text 時，請務必按照中文出版小說格式，每段之間使用雙換行 (\\n\\n) 進行清晰分段，切勿將文字擠在同一行或單長段落中！
-
-【關鍵伏筆任務與防重複要求】
+【伏筆任務】
 {foreshadow_instruction}
 
-同時，請在 next_chapter_summary 中提供一段 150 字左右的精準結尾摘要，以便自動預填為下一章的銜接點。
+同時，請在 next_chapter_summary 提供 150 字結尾摘要以自動預填為下一章銜接點。
 """
-
         try:
             genai.configure(api_key=active_api_key)
+            response_schema = {"type": "OBJECT", "properties": {"novel_text": {"type": "STRING"}, "next_chapter_summary": {"type": "STRING"}, "new_foreshadowing": {"type": "ARRAY", "items": {"type": "OBJECT", "properties": {"content": {"type": "STRING"}, "progress": {"type": "STRING"}, "status": {"type": "STRING"}, "current_stage_goal": {"type": "STRING"}, "truth": {"type": "STRING"}}, "required": ["content", "status", "truth"]}}}, "required": ["novel_text", "next_chapter_summary", "new_foreshadowing"]}
+            model = genai.GenerativeModel("gemini-flash-latest")
             
-            response_schema = {
-                "type": "OBJECT",
-                "properties": {
-                    "novel_text": {"type": "STRING"},
-                    "next_chapter_summary": {"type": "STRING"},
-                    "new_foreshadowing": {
-                        "type": "ARRAY",
-                        "items": {
-                            "type": "OBJECT",
-                            "properties": {
-                                "content": {"type": "STRING"},
-                                "progress": {"type": "STRING"},
-                                "status": {"type": "STRING"},
-                                "current_stage_goal": {"type": "STRING"},
-                                "truth": {"type": "STRING"}
-                            },
-                            "required": ["content", "status", "truth"]
-                        }
-                    }
-                },
-                "required": ["novel_text", "next_chapter_summary", "new_foreshadowing"]
-            }
-
-            target_model = "gemini-flash-latest"
-            try:
-                model = genai.GenerativeModel(target_model)
-                st.caption(f"⚡ 成功連線模型：`{target_model}`")
-            except Exception:
-                target_model = "gemini-3.5-flash"
-                model = genai.GenerativeModel(target_model)
-                st.caption(f"⚡ 自動切換連線模型：`{target_model}`")
-            
-            with st.spinner("✨ 正在撰寫小說內文並同步生成下一章銜接摘要..."):
-                response = model.generate_content(
-                    prompt,
-                    generation_config={
-                        "response_mime_type": "application/json",
-                        "response_schema": response_schema
-                    }
-                )
+            with st.spinner("✨ 正在撰寫小說內文並同步生成銜接點..."):
+                response = model.generate_content(prompt, generation_config={"response_mime_type": "application/json", "response_schema": response_schema})
             
             result_json = json.loads(response.text)
-            novel_text = result_json.get("novel_text", "")
-            next_summary = result_json.get("next_chapter_summary", "")
-            new_foreshadows = result_json.get("new_foreshadowing", [])
-            
-            app_data["generated_content"] = novel_text
-            if next_summary:
-                app_data["previous_summary"] = next_summary
+            app_data["generated_content"] = result_json.get("novel_text", "")
+            if result_json.get("next_chapter_summary"): app_data["previous_summary"] = result_json.get("next_chapter_summary")
 
             if enable_f and f_count > 0:
-                for nf in new_foreshadows:
+                for nf in result_json.get("new_foreshadowing", []):
                     if nf.get("content"):
-                        new_f_id = f"f_{datetime.now().strftime('%M%S%f')}"
-                        app_data.setdefault("foreshadowing_list", []).append({
-                            "id": new_f_id,
-                            "content": nf.get("content", ""),
-                            "progress": nf.get("progress", "0% (剛埋下/僅現象)"),
-                            "status": nf.get("status", "待解答"),
-                            "current_stage_goal": nf.get("current_stage_goal", "僅維持現象描寫，絕對不可解開！"),
-                            "truth": nf.get("truth", "")
-                        })
+                        app_data.setdefault("foreshadowing_list", []).append({"id": f"f_{datetime.now().strftime('%M%S%f')}", "content": nf.get("content", ""), "progress": nf.get("progress", "0% (剛埋下/僅現象)"), "status": nf.get("status", "待解答"), "current_stage_goal": nf.get("current_stage_goal", "僅維持現象描寫！"), "truth": nf.get("truth", "")})
 
             st.session_state["just_generated"] = True
             st.session_state["gen_time_key"] = datetime.now().strftime('%M%S%f')
             st.rerun()
 
-        except Exception as e:
-            st.error(f"Gemini API 呼叫或 JSON 解析失敗：{str(e)}")
+        except Exception as e: st.error(f"Gemini API 呼叫失敗：{str(e)}")
