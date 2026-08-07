@@ -28,7 +28,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# ================= 2. 預設資料初始化 (包含 world_event) =================
+# ================= 2. 預設資料初始化 (已徹底清除物理標籤) =================
 default_data = {
   "book_title": "《克蘇魯的遊樂園》",
   "book_theme": "懸疑 / 克蘇魯 / 規則怪談 / 心理博弈 / 高智商解謎",
@@ -55,16 +55,16 @@ default_data = {
       "name": "失聲列車（共12節車廂）",
       "scope": "第一集主要活動範圍",
       "visual_style": "20世紀貴族風格木製裝潢",
-      "physics_detail": "時間鎖死在 06:52",
+      "physics_detail": "時間鎖死在 06:52，空氣中瀰漫陳舊木材與腐敗發酵酸臭",
       "local_rules": "絕不可發聲"
     }
   ],
   "volumes_list": [{"id": "v1", "title": "第一集：失聲火車", "target_words": 100000, "summary": "求生指南"}],
   "character_list": [
     {
-      "id": "c1", "name": "蘇默", "category": "當前在場/主要角色", "faction": "理工科大學新生",
+      "id": "c1", "name": "蘇默", "category": "當前在場/主要角色", "faction": "大學新生",
       "public_relation": "主角本人", "hidden_motive": "求生", "summary": "習慣在內心吐槽的大一新生",
-      "personality": "理智、數據導向", "status": "健康", "sanity": "84%", "speech_style": "簡潔", "dialogue_example": "「06:52，時間沒動。」"
+      "personality": "冷靜、觀察力極強、習慣內心吐槽", "status": "健康", "sanity": "84%", "speech_style": "簡潔", "dialogue_example": "「06:52，時間沒動。」"
     }
   ],
   "chapters_list": [],
@@ -85,7 +85,7 @@ default_data = {
   "reveal_and_mystery": "",
   "must_include": "",
   "chapter_outline": "",
-  "writing_taboos": "• 禁止任何角色開口發聲說話\n• 寫作禁止直接稱呼克系\n• 嚴禁刻板公式化的物理教科書描寫，注重感官與心理真實體感",
+  "writing_taboos": "• 禁止任何角色開口發聲說話\n• 寫作禁止直接稱呼克系\n• 嚴禁出現任何物理公式、教科書推導與物理單位名詞（如阻尼、熱力學、分貝等）\n• 重點放在感官異常、心理恐懼、規則博弈與生死拉扯",
   "generated_content": "",
   "enable_new_foreshadow": True,
   "new_foreshadow_count": 1,
@@ -103,7 +103,6 @@ if "director_script" not in st.session_state: st.session_state["director_script"
 app_data = st.session_state["app_data"]
 ver = st.session_state["upload_ver"]
 
-# 確保 world_event 字典結構存在
 if "world_event" not in app_data:
     app_data["world_event"] = default_data["world_event"]
 
@@ -188,29 +187,24 @@ with tab_write:
         st.markdown("### 📖 全章閱讀預覽 Mode：")
         st.markdown(app_data["generated_content"])
 
-# ---------------- Tab 2: 世界大事件與局勢推演 (核心新功能) ----------------
+# ---------------- Tab 2: 世界大事件與局勢推演 ----------------
 with tab_event_hub:
     st.subheader("🌪️ 世界線大事件與連鎖局勢推演引擎")
-    st.caption("💡 在這裡設定宏觀世界爆發的大事件（如：車廂失壓、虛空黑潮爆發、警報響起），AI 會自動推演並強制改變各陣營角色的決策與行動！")
+    st.caption("💡 在這裡設定宏觀世界爆發的大事件，AI 會自動推演並強制改變各陣營角色的決策與行動！")
 
     we = app_data["world_event"]
     
     col_we1, col_we2 = st.columns([2, 1])
-    with col_we1:
-        we["title"] = st.text_input("💥 當前世界大事件名稱", value=we.get("title", ""), key=f"we_t_{ver}")
-    with col_we2:
-        we["scope"] = st.text_input("📍 事件影響範圍/波及區域", value=we.get("scope", ""), key=f"we_s_{ver}")
+    with col_we1: we["title"] = st.text_input("💥 當前世界大事件名稱", value=we.get("title", ""), key=f"we_t_{ver}")
+    with col_we2: we["scope"] = st.text_input("📍 事件影響範圍/波及區域", value=we.get("scope", ""), key=f"we_s_{ver}")
 
     we["description"] = st.text_area("📜 事件詳細狀況與環境巨變描寫", value=we.get("description", ""), height=100, key=f"we_d_{ver}")
 
     st.markdown("### 🔗 陣營連鎖反應設定 (Domino Effect)")
     col_imp1, col_imp2, col_imp3 = st.columns(3)
-    with col_imp1:
-        we["impact_hero"] = st.text_area("👤 對主角（蘇默）的直接影響/決策改變", value=we.get("impact_hero", ""), height=120, key=f"we_ih_{ver}")
-    with col_imp2:
-        we["impact_allies"] = st.text_area("👥 對配角/盟友的影響與心理動搖", value=we.get("impact_allies", ""), height=120, key=f"we_ia_{ver}")
-    with col_imp3:
-        we["impact_villains"] = st.text_area("👁️ 對反派/高維存在的波及與反制方案", value=we.get("impact_villains", ""), height=120, key=f"we_iv_{ver}")
+    with col_imp1: we["impact_hero"] = st.text_area("👤 對主角（蘇默）的直接影響", value=we.get("impact_hero", ""), height=120, key=f"we_ih_{ver}")
+    with col_imp2: we["impact_allies"] = st.text_area("👥 對配角/盟友的影響與動搖", value=we.get("impact_allies", ""), height=120, key=f"we_ia_{ver}")
+    with col_imp3: we["impact_villains"] = st.text_area("👁️ 對反派/高維存在的波及", value=we.get("impact_villains", ""), height=120, key=f"we_iv_{ver}")
 
     btn_sim_event = st.button("🎲 點此讓 AI 自動推演『大事件對全場角色的連鎖衝擊』", type="primary", use_container_width=True, key=f"sim_ev_btn_{ver}")
 
@@ -292,7 +286,7 @@ with tab_world_hub:
                 loc['name'] = st.text_input("區域名稱", value=loc.get('name', ''), key=f"loc_n_{loc_id}_{ver}")
                 loc['scope'] = st.text_input("適用範圍", value=loc.get('scope', ''), key=f"loc_sc_{loc_id}_{ver}")
                 loc['visual_style'] = st.text_area("🏛️ 視覺建築特色", value=loc.get('visual_style', ''), key=f"loc_vs_{loc_id}_{ver}", height=60)
-                loc['physics_detail'] = st.text_area("⚙️ 環境與物理異常", value=loc.get('physics_detail', ''), key=f"loc_pd_{loc_id}_{ver}", height=60)
+                loc['physics_detail'] = st.text_area("🌫️ 環境異常與異變現象", value=loc.get('physics_detail', ''), key=f"loc_pd_{loc_id}_{ver}", height=60)
                 loc['local_rules'] = st.text_area("🚫 區域專屬禁忌", value=loc.get('local_rules', ''), key=f"loc_lr_{loc_id}_{ver}", height=60)
                 if st.button("🗑️ 刪除區域", key=f"loc_d_{loc_id}_{ver}"): loc_del_id = loc_id
         if loc_del_id: app_data["location_list"] = [l for l in app_data["location_list"] if l.get("id") != loc_del_id]; st.rerun()
@@ -385,14 +379,13 @@ with tab_system_hub:
         json_string = json.dumps(app_data, ensure_ascii=False, indent=2)
         st.download_button("📥 下載當前全書設定檔 (.json)", data=json_string, file_name=f"{app_data.get('book_title', '小說')}_{app_data.get('current_vol_title', '第一集')}_第{app_data.get('current_chap', 1)}章.json", mime="application/json", use_container_width=True, key=f"dl_btn_{ver}")
 
-# ================= 5. 後端 Prompt 與 API 邏輯 (包含世界大事件) =================
-locations_text = "".join([f"【{l.get('name', '')} ({l.get('scope', '')})】\n• 建築特色：{l.get('visual_style', '')}\n• 環境異常：{l.get('physics_detail', '')}\n• 區域規則：{l.get('local_rules', '')}\n---\n" for l in app_data.get("location_list", [])])
+# ================= 5. 後端 Prompt 與 API 邏輯 =================
+locations_text = "".join([f"【{l.get('name', '')} ({l.get('scope', '')})】\n• 建築特色：{l.get('visual_style', '')}\n• 環境異象：{l.get('physics_detail', '')}\n• 區域規則：{l.get('local_rules', '')}\n---\n" for l in app_data.get("location_list", [])])
 items_text = "".join([f"• {i.get('name', '')} (持有:{i.get('owner', '')}): {i.get('status', '')}\n" for i in app_data.get("items_inventory", [])])
 rules_text = "".join([f"{idx+1}. {r.get('content', '')}\n" for idx, r in enumerate(app_data.get("confirmed_rules_list", []))])
 updated_characters_text = "".join([f"【{c.get('name', '')} ({c.get('faction', '')})】\n• 簡介：{c.get('summary', '')}\n• 狀態：{c.get('status', '')}\n• 隱藏動態：{c.get('hidden_motive', '')}\n---\n" for c in app_data.get("character_list", [])])
 foreshadowing_context = "".join([f"• [伏筆 ID: {f.get('id')}] 表面現象描述：{f.get('content')}\n  - 📍 當前解開進度限制：【{f.get('progress', f.get('status', '0%'))}】\n  - 🎯 本章允許揭露邊界：{f.get('current_stage_goal', '僅維持現象描寫，絕對不可解開！')}\n  - 🔒 終極隱藏真相（未達 100% 嚴禁劇透）：{f.get('truth')}\n----------------------------------------\n" for f in app_data.get("foreshadowing_list", [])])
 
-# 世界大事件 Context
 we_info = app_data["world_event"]
 world_event_context = f"""
 【🌪️ 當前觸發的世界線大事件（最高優先級背景）】
@@ -455,7 +448,7 @@ if btn_ai_f:
                 st.success("🎉 定向伏筆發想完畢！已加入智庫！"); st.rerun()
             except Exception as e: st.error(f"發想伏筆失敗: {str(e)}")
 
-# API 邏輯 3：生成正文
+# API 邏輯 3：生成正文 (嚴格負向語氣限制)
 if generate_btn:
     if not active_api_key: st.error("❌ 找不到 Gemini API Key！")
     else:
@@ -465,14 +458,17 @@ if generate_btn:
         director_script_context = f"\n【🎬 導演分鏡腳本參考】\n{st.session_state['director_script']}\n" if st.session_state.get("director_script") else ""
 
         prompt = f"""
-你是一位頂級懸疑/規則怪談小說家。請根據以下寫作風格、世界大事件與指令撰寫最新一章純內文。
+你是一位頂級懸疑/規則怪談小說家。請根據以下風格、世界大事件與指令撰寫最新一章純內文。
 
 {world_event_context}
 
 【🔥 最高優先級風格要求】
 1. 🌊 懸疑氛圍：{app_data.get('style_suspense')}
 2. ⚔️ 戰鬥博弈：{app_data.get('style_battle')}
-* 切勿使用公式化物理教科書解說，注重真實感官體感！
+
+【🚫 絕對禁止語詞與風格（Negative Prompt - 違者重寫）】
+1. 嚴禁出現任何物理公式、定理名稱、常數單位（如分貝、阻尼係數、熱力學熵、向量等物理名詞）。
+2. 主角解謎必須依賴【對規則的洞察、感官體感、心理博弈與邏輯推理】，絕對不可進行物理/化學實驗式的推導！
 
 【全書與區域】
 • 書名：{app_data.get('book_title')} ({app_data.get('book_theme')}) | 真相：{app_data.get('book_overall_secret')}
