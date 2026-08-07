@@ -4,7 +4,7 @@ import os
 import google.generativeai as genai
 from datetime import datetime
 
-# 頁面基本設定
+# ================= 頁面基本設定 =================
 st.set_page_config(page_title="專業小說家 AI 寫作工作站", page_icon="✍️", layout="wide")
 
 # 🔓 強制解鎖全頁面文字選取與複製 + 優化文字框換行排版
@@ -29,8 +29,8 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.title("✍️ 專業小說家 AI 全書寫作工作站")
-st.caption("主頁面分頁極簡架構（直連 Gemini Flash API） | 自動伏筆追蹤與長線管理 | 100% 通用現有 JSON 存檔")
+st.title("✍️ 專業小說家 AI 全書寫作工作站 (智慧管理版)")
+st.caption("主頁面分頁極簡架構（直連 Gemini Flash API） | 雙階導演腳本 | 獨立伏筆發想 | 100% 通用現有 JSON 存檔")
 
 # ================= 預設資料初始化 =================
 default_data = {
@@ -97,6 +97,8 @@ if "just_generated" not in st.session_state:
     st.session_state["just_generated"] = False
 if "gen_time_key" not in st.session_state:
     st.session_state["gen_time_key"] = "initial"
+if "director_script" not in st.session_state:
+    st.session_state["director_script"] = ""
 
 app_data = st.session_state["app_data"]
 ver = st.session_state["upload_ver"]
@@ -126,8 +128,17 @@ with tab_main:
     app_data["previous_summary"] = st.text_area("📌 上一章結尾錨點 (銜接點)", value=app_data.get("previous_summary", ""), height=100, key=f"ps_{ver}")
     app_data["chapter_outline"] = st.text_area("🎯 本章具體大綱與情節推進 (主要寫作指令)", value=app_data.get("chapter_outline", ""), height=120, key=f"co_{ver}")
 
+    # 🎬 智慧功能 1：AI 導演分鏡與審查（Agent Workflow Step 1）
+    col_dir1, col_dir2 = st.columns([3, 1])
+    with col_dir2:
+        btn_director = st.button("🎬 點此讓 AI 先拆解導演分鏡腳本", key=f"dir_btn_{ver}", use_container_width=True)
+
+    # 預覽導演分鏡
+    if st.session_state["director_script"]:
+        with st.expander("🎬 AI 導演分鏡與邏輯檢查報告（點此折疊/展開）", expanded=True):
+            st.markdown(st.session_state["director_script"])
+
     with st.expander("⚙️ 點此展開【本章進階微調參數】", expanded=False):
-        # 🎯 伏筆策略與防重複黑名單設定
         st.markdown("#### 🔮 伏筆發想策略與【防重複黑名單】")
         col_f_opt1, col_f_opt2 = st.columns([2, 1])
         with col_f_opt1:
@@ -203,15 +214,17 @@ with tab_main:
         st.markdown("### 📖 全章閱讀預覽 Mode：")
         st.markdown(app_data["generated_content"])
 
-# ---------------- Tab 2: 長線伏筆與案件牆 (支援進度鎖與階段揭示目標) ----------------
+# ---------------- Tab 2: 長線伏筆與案件牆 (支援進度鎖與 AI 單獨生成伏筆) ----------------
 with tab_foreshadow:
     st.subheader("🔮 長線伏筆與謎團策劃庫")
     st.caption("💡 這裡記錄了所有 AI 寫作時自動捕捉或由你手動創建的伏筆。你可以調整『解開進度鎖』與『本章揭露邊界』，精準控制劇透節奏！")
     
-    col_f_t, col_f_a = st.columns([3, 1])
+    col_f_t, col_f_a1, col_f_a2 = st.columns([2, 1, 1])
     with col_f_t: st.markdown("### 📜 全書伏筆追蹤清單")
-    with col_f_a:
-        if st.button("➕ 手動新增伏筆", key=f"add_f_btn_{ver}"):
+    
+    # 1. 手動新增伏筆按鈕
+    with col_f_a1:
+        if st.button("➕ 手動新增伏筆", key=f"add_f_btn_{ver}", use_container_width=True):
             new_f_id = f"f_{datetime.now().strftime('%M%S%f')}"
             app_data.setdefault("foreshadowing_list", []).append({
                 "id": new_f_id,
@@ -223,10 +236,14 @@ with tab_foreshadow:
             })
             st.rerun()
 
+    # 2. 🤖 AI 單獨生成新伏筆按鈕（智慧功能 2）
+    with col_f_a2:
+        btn_ai_f = st.button("🤖 AI 單獨發想伏筆", type="primary", key=f"ai_gen_f_btn_{ver}", use_container_width=True)
+
     f_list = app_data.get("foreshadowing_list", [])
     
     if not f_list:
-        st.info("💡 目前尚無紀錄中的伏筆。按下生成小說按鈕時，AI 會依據你的設定自動記錄新伏筆至這裡！")
+        st.info("💡 目前尚無紀錄中的伏筆。你可以點擊上方『🤖 AI 單獨發想伏筆』按鈕讓 AI 自動靈感生成！")
     else:
         tab_f1, tab_f2, tab_f3 = st.tabs(["📌 待解答/埋下中 (0%-20%)", "🔄 揭露中/推演中 (50%-80%)", "✅ 已完全回收 (100%)"])
         
@@ -468,7 +485,7 @@ with tab_system:
         key=f"dl_btn_{ver}"
     )
 
-# ================= 自動構建 Prompt 文字 (強化伏筆進度鎖控制) =================
+# ================= 自動構建 Prompt 文字 =================
 locations_text = "".join([
     f"【{l.get('name', '')} ({l.get('scope', '')})】\n• 建築特色：{l.get('visual_style', '')}\n• 環境異常：{l.get('physics_detail', '')}\n• 區域規則：{l.get('local_rules', '')}\n---\n"
     for l in app_data.get("location_list", [])
@@ -489,7 +506,6 @@ updated_characters_text = "".join([
     for c in app_data.get("character_list", [])
 ])
 
-# 🔮 強化伏筆 Prompt：帶入 progress 與 current_stage_goal 鎖定邊界
 foreshadowing_context = "".join([
     f"• [伏筆 ID: {f.get('id')}] 表面現象描述：{f.get('content')}\n"
     f"  - 📍 當前解開進度限制：【{f.get('progress', f.get('status', '0%'))}】\n"
@@ -516,7 +532,99 @@ if enable_f and f_count > 0:
 else:
     foreshadow_instruction = "本章專注於推進劇情與回收舊伏筆，嚴禁埋下任何新伏筆！請務必將 new_foreshadowing 欄位回傳空陣列 []。"
 
-# ================= 直連 Gemini API 生成邏輯 (Key 自動升級機制) =================
+# ================= 智慧邏輯 1：分鏡腳本拆解 (Agent Workflow Step 1) =================
+if btn_director:
+    if not active_api_key:
+        st.error("❌ 請先輸入 Gemini API Key！")
+    else:
+        with st.spinner("🎬 AI 導演正在進行大綱邏輯檢查與分鏡拆解..."):
+            try:
+                genai.configure(api_key=active_api_key)
+                dir_prompt = f"""
+你是一位極度嚴苛的懸疑小說執行導演與大綱審查員。請針對【{app_data.get('book_title')}】第 {app_data.get('current_chap')} 章的大綱規劃，進行『無聲鐵律衝突檢查』並拆解出『4 個具體鏡頭腳本』。
+
+【鐵律與環境】
+{rules_text}
+
+【本章大綱】
+{app_data.get('chapter_outline')}
+
+【請輸出以下 Markdown 導演報告】：
+1. 🛡️ **無聲鐵律邏輯檢查**（評估大綱有無角色開口、撞擊聲漏防等漏洞，並給出修正建議）
+2. 🎬 **4 個鏡頭分鏡拆解**（標明每個鏡頭的場景、視角主角體感、伏筆/道具切入點與情緒高潮）
+"""
+                target_model = "gemini-flash-latest"
+                try:
+                    d_model = genai.GenerativeModel(target_model)
+                except Exception:
+                    d_model = genai.GenerativeModel("gemini-3.5-flash")
+
+                d_res = d_model.generate_content(dir_prompt)
+                st.session_state["director_script"] = d_res.text
+                st.success("🎉 導演分鏡腳本拆解完成！請見上方展開區域。")
+                st.rerun()
+            except Exception as e:
+                st.error(f"拆解失敗: {str(e)}")
+
+# ================= 智慧邏輯 2：單獨靈感生成新伏筆 =================
+if btn_ai_f:
+    if not active_api_key:
+        st.error("❌ 請先輸入 Gemini API Key！")
+    else:
+        with st.spinner("✨ Gemini 正在分析全書 JSON 並靈感發想新伏筆..."):
+            try:
+                genai.configure(api_key=active_api_key)
+                exist_f_text = "\n".join([f"• {f.get('content')} (真相: {f.get('truth')})" for f in app_data.get("foreshadowing_list", [])])
+                
+                ai_f_prompt = f"""
+你是一位頂級懸疑/規則怪談小說架構師。請仔細閱讀全書背景，單獨發想【1 個全新且絕不重複】的高質感長線伏筆。
+
+【全書背景】
+• 書名：{app_data.get('book_title')} ({app_data.get('book_theme')})
+• 真相：{app_data.get('book_overall_secret')}
+• 當前章節：第 {app_data.get('current_chap')} 章
+• 既有伏筆：{exist_f_text if exist_f_text else "無"}
+• 🚫 黑名單：{f_blacklist}
+
+【要求】
+表面現象必須符合20世紀列車氛圍且為主角可觀察之微小異常。預設進度標籤『0% (剛埋下/僅現象)』。
+"""
+                f_schema = {
+                    "type": "OBJECT",
+                    "properties": {
+                        "content": {"type": "STRING"},
+                        "progress": {"type": "STRING"},
+                        "status": {"type": "STRING"},
+                        "current_stage_goal": {"type": "STRING"},
+                        "truth": {"type": "STRING"}
+                    },
+                    "required": ["content", "progress", "status", "current_stage_goal", "truth"]
+                }
+
+                target_model = "gemini-flash-latest"
+                try:
+                    f_model = genai.GenerativeModel(target_model)
+                except Exception:
+                    f_model = genai.GenerativeModel("gemini-3.5-flash")
+
+                f_response = f_model.generate_content(ai_f_prompt, generation_config={"response_mime_type": "application/json", "response_schema": f_schema})
+                new_f_data = json.loads(f_response.text)
+                
+                new_f_id = f"f_{datetime.now().strftime('%M%S%f')}"
+                app_data.setdefault("foreshadowing_list", []).append({
+                    "id": new_f_id,
+                    "content": new_f_data.get("content", ""),
+                    "progress": new_f_data.get("progress", "0% (剛埋下/僅現象)"),
+                    "status": new_f_data.get("status", "待解答"),
+                    "current_stage_goal": new_f_data.get("current_stage_goal", "僅維持現象描寫，絕對不可解開！"),
+                    "truth": new_f_data.get("truth", "")
+                })
+                st.success("🎉 新伏筆發想完畢！已添加至伏筆庫！")
+                st.rerun()
+            except Exception as e:
+                st.error(f"發想伏筆失敗: {str(e)}")
+
+# ================= 智慧邏輯 3：直連 Gemini API 生成正文與自動銜接 =================
 if generate_btn:
     if not active_api_key:
         st.error("❌ 找不到 Gemini API Key！請先在『💾 API 設定與存檔管理』頁面填入 Key。")
@@ -528,14 +636,16 @@ if generate_btn:
             perspective_instruction = f"""
 • 描寫視角：【第一人稱】
 • 限制要求：你現在就是角色【{pov_character}】！必須全程以【{pov_character}】的第一人稱『我』進行寫作。
-• 視角禁忌：嚴禁出現任何高維觀察者、系統監控日誌（如【監控端日誌】）、作者旁白或第三人稱視角。所有數據與狀態（如SAN值、心率）必須自然融入【{pov_character}】的個人體感與心理思考中。
+• 視角禁忌：嚴禁出現任何高維觀察者、系統監控日誌（如【監控端日誌】）、作者旁白或第三人稱視角。所有數據與狀態必須自然融入【{pov_character}】的個人體感與心理思考中。
 """
         else:
             perspective_instruction = f"""
 • 描寫視角：【{pov_type}】(焦點角色：{pov_character})
 • 限制要求：請以專業小說敘事者（旁白）的視角進行描寫，圍繞主角【{pov_character}】的行動與所見所聞展開。
-• 視角禁忌：嚴禁輸出遊戲化/系統化的數據標籤（如【監控端日誌】、【SAN值評估】），請將數據轉化為小說中的客觀環境描寫與角色身體反應細節。
+• 視角禁忌：嚴禁輸出遊戲化/系統化的數據標籤，請將數據轉化為小說中的客觀環境描寫與角色身體反應細節。
 """
+
+        director_script_context = f"\n【🎬 導演分鏡腳本參考】\n{st.session_state['director_script']}\n" if st.session_state.get("director_script") else ""
 
         prompt = f"""
 你是一位頂級的懸疑 / 克蘇魯 / 規則怪談小說作家。請根據以下完整的全書世界觀、區域設定與本章微調指令，為我撰寫小說最新一章的純內文。
@@ -562,7 +672,7 @@ if generate_btn:
 
 【上一章銜接點】
 {app_data.get('previous_summary')}
-
+{director_script_context}
 【本章撰寫精準指令】
 • 當前章節：{app_data.get('current_vol_title')} 第 {app_data.get('current_chap')} 章
 • 本章大綱：{app_data.get('chapter_outline')}
@@ -580,6 +690,8 @@ if generate_btn:
 
 【關鍵伏筆任務與防重複要求】
 {foreshadow_instruction}
+
+同時，請在 next_chapter_summary 中提供一段 150 字左右的精準結尾摘要，以便自動預填為下一章的銜接點。
 """
 
         try:
@@ -589,6 +701,7 @@ if generate_btn:
                 "type": "OBJECT",
                 "properties": {
                     "novel_text": {"type": "STRING"},
+                    "next_chapter_summary": {"type": "STRING"},
                     "new_foreshadowing": {
                         "type": "ARRAY",
                         "items": {
@@ -604,7 +717,7 @@ if generate_btn:
                         }
                     }
                 },
-                "required": ["novel_text", "new_foreshadowing"]
+                "required": ["novel_text", "next_chapter_summary", "new_foreshadowing"]
             }
 
             target_model = "gemini-flash-latest"
@@ -616,7 +729,7 @@ if generate_btn:
                 model = genai.GenerativeModel(target_model)
                 st.caption(f"⚡ 自動切換連線模型：`{target_model}`")
             
-            with st.spinner("✨ 正在撰寫小說內文並比對歷史伏筆去重中..."):
+            with st.spinner("✨ 正在撰寫小說內文並同步生成下一章銜接摘要..."):
                 response = model.generate_content(
                     prompt,
                     generation_config={
@@ -627,11 +740,13 @@ if generate_btn:
             
             result_json = json.loads(response.text)
             novel_text = result_json.get("novel_text", "")
+            next_summary = result_json.get("next_chapter_summary", "")
             new_foreshadows = result_json.get("new_foreshadowing", [])
             
-            # 1. 寫入 Session State 小說內文
+            # 1. 寫入 Session State 小說內文與預填銜接摘要
             app_data["generated_content"] = novel_text
-            st.session_state["app_data"]["generated_content"] = novel_text
+            if next_summary:
+                app_data["previous_summary"] = next_summary  # 自動預填給下一章使用
 
             # 2. 自動將 AI 捕捉到的新伏筆添加進伏筆庫
             if enable_f and f_count > 0:
@@ -643,7 +758,7 @@ if generate_btn:
                             "content": nf.get("content", ""),
                             "progress": nf.get("progress", "0% (剛埋下/僅現象)"),
                             "status": nf.get("status", "待解答"),
-                            "current_stage_goal": nf.get("current_stage_goal", "僅維持現象描寫，絕對不可解開或劇透！"),
+                            "current_stage_goal": nf.get("current_stage_goal", "僅維持現象描寫，絕對不可解開！"),
                             "truth": nf.get("truth", "")
                         })
 
