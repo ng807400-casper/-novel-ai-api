@@ -29,13 +29,13 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.title("✍️ 專業小說家 AI 全書寫作工作站 (智慧管理版)")
-st.caption("主頁面分頁極簡架構（直連 Gemini Flash API） | 雙階導演腳本 | 獨立伏筆發想 | 100% 通用現有 JSON 存檔")
+st.title("✍️ 專業小說家 AI 全書寫作工作站 (雙文風強化版)")
+st.caption("懸疑比照《深海餘燼》 | 戰鬥比照《輪迴樂園》 | 獨立文風欄位 | 徹底去除物理硬約束")
 
 # ================= 預設資料初始化 =================
 default_data = {
-  "book_title": "《失號領域》",
-  "book_theme": "懸疑 / 克蘇魯 / 規則怪談 / 物理解謎",
+  "book_title": "《克蘇魯的遊樂園》",
+  "book_theme": "懸疑 / 克蘇魯 / 規則怪談 / 心理博弈 / 高智商解謎",
   "book_overall_secret": "希靈帝國在阻止虛空大災變的過程中，意外聯絡上虛空背面的神族，得知虛空大災變真相為虛空雙向歸零的機制。",
   "confirmed_rules_list": [{"id": "r1", "content": "絕不可發聲或製造空氣震動（違者觸發黑液與菌絲吞噬）。"}],
   "hypotheses_list": [],
@@ -72,14 +72,16 @@ default_data = {
   "sensory_details": "",
   "pov_type": "第一人稱",
   "pov_character": "蘇默",
-  "tone_setting": "極度壓抑、懸疑冷酷",
+  "tone_setting": "描述懸疑、驚悚、恐懼、營造氣氛、對話時採用「遠瞳」的「深海餘燼」這本小說的撰寫方式；描述戰鬥時採用「那一只蚊子」的「輪迴樂園」這本小說的撰寫方式。",
+  "style_suspense": "比照「遠瞳」《深海餘燼》：注重客觀白描、恢弘壓抑的氛圍營造、深邃詭異的宏大感、冷酷環境與主角內心微吐槽的妙趣反差。",
+  "style_battle": "比照「那一只蚊子」《輪迴樂園》：極致乾脆利落、肌肉與神經動能的微米級白描、生死博弈的冷酷果斷、刀刀見血的死鬥拉扯感。",
   "previous_summary": "",
   "scene_conflict": "",
   "scene_turn": "",
   "reveal_and_mystery": "",
   "must_include": "",
   "chapter_outline": "",
-  "writing_taboos": "• 禁止任何角色開口發聲說話\n• 寫作禁止直接稱呼克系",
+  "writing_taboos": "• 禁止任何角色開口發聲說話\n• 寫作禁止直接稱呼克系\n• 嚴禁刻板公式化的物理教科書描寫，注重感官與心理真實體感",
   "generated_content": "",
   "enable_new_foreshadow": True,
   "new_foreshadow_count": 1,
@@ -110,7 +112,7 @@ tab_main, tab_foreshadow, tab_world, tab_items, tab_chars, tab_system = st.tabs(
     "🌌 世界觀與地圖庫", 
     "🎒 道具與鐵律案件牆", 
     "👥 角色卡片庫", 
-    "💾 API 設定與存檔管理"
+    "💾 API 設定與文風管理"
 ])
 
 # ---------------- Tab 1: 本章寫作控制台 ----------------
@@ -123,20 +125,37 @@ with tab_main:
     with col_m2:
         app_data["current_chap"] = st.number_input("目前章節", value=int(app_data.get("current_chap", 1)), min_value=1, key=f"cc_{ver}")
     with col_m3:
-        app_data["target_chapter_words"] = st.number_input("🎯 本章目標字數", value=int(app_data.get("target_chapter_words", 3000)), step=500, key=f"tcw_{ver}")
+        app_data["target_chapter_words"] = st.number_input("🎯 本章目標字數", value=int(app_data.get("target_chapter_words", 4000)), step=500, key=f"tcw_{ver}")
 
     app_data["previous_summary"] = st.text_area("📌 上一章結尾錨點 (銜接點)", value=app_data.get("previous_summary", ""), height=100, key=f"ps_{ver}")
     app_data["chapter_outline"] = st.text_area("🎯 本章具體大綱與情節推進 (主要寫作指令)", value=app_data.get("chapter_outline", ""), height=120, key=f"co_{ver}")
 
-    # 🎬 智慧功能 1：AI 導演分鏡與審查（Agent Workflow Step 1）
+    # 🎬 智慧功能：AI 導演分鏡與審查
     col_dir1, col_dir2 = st.columns([3, 1])
     with col_dir2:
         btn_director = st.button("🎬 點此讓 AI 先拆解導演分鏡腳本", key=f"dir_btn_{ver}", use_container_width=True)
 
-    # 預覽導演分鏡
     if st.session_state["director_script"]:
         with st.expander("🎬 AI 導演分鏡與邏輯檢查報告（點此折疊/展開）", expanded=True):
             st.markdown(st.session_state["director_script"])
+
+    # 🔥 獨立出兩位神級作者的文風控制顯示卡
+    st.markdown("#### 🎭 雙神級作者文風控制 (已套用最高權重)")
+    col_style1, col_style2 = st.columns(2)
+    with col_style1:
+        app_data["style_suspense"] = st.text_area(
+            "🌊 懸疑/氛圍/對話文風 (預設：遠瞳《深海餘燼》)",
+            value=app_data.get("style_suspense", "比照「遠瞳」《深海餘燼》：注重客觀白描、恢弘壓抑的氛圍營造、深邃詭異的宏大感、冷酷環境與主角內心微吐槽的妙趣反差。"),
+            height=85,
+            key=f"ss_{ver}"
+        )
+    with col_style2:
+        app_data["style_battle"] = st.text_area(
+            "⚔️ 戰鬥/生死博弈文風 (預設：那一只蚊子《輪迴樂園》)",
+            value=app_data.get("style_battle", "比照「那一只蚊子」《輪迴樂園》：極致乾脆利落、肌肉與神經動能的微米級白描、生死博弈的冷酷果斷、刀刀見血的死鬥拉扯感。"),
+            height=85,
+            key=f"sb_{ver}"
+        )
 
     with st.expander("⚙️ 點此展開【本章進階微調參數】", expanded=False):
         st.markdown("#### 🔮 伏筆發想策略與【防重複黑名單】")
@@ -149,7 +168,7 @@ with tab_main:
         app_data["foreshadow_black_list"] = st.text_area(
             "🚫 嚴禁重複出現的伏筆類型 / 老套路黑名單 (避免出戲)",
             value=app_data.get("foreshadow_black_list", "• 禁止重複出現懷錶/舊報紙/簡訊等老套路"),
-            height=100,
+            height=80,
             key=f"fbl_{ver}"
         )
 
@@ -177,7 +196,7 @@ with tab_main:
         with col_sub1:
             app_data["time_and_environment"] = st.text_input("⏱️ 時間線與環境狀態", value=app_data.get("time_and_environment", ""), key=f"tae_{ver}")
         with col_sub2:
-            app_data["tone_setting"] = st.text_input("🎭 本章情緒基調", value=app_data.get("tone_setting", ""), key=f"ts_{ver}")
+            app_data["tone_setting"] = st.text_input("🎭 全局基調設定備註", value=app_data.get("tone_setting", ""), key=f"ts_{ver}")
 
         app_data["sensory_details"] = st.text_area("🌫️ 五感描寫重點", value=app_data.get("sensory_details", ""), height=70, key=f"sd_{ver}")
 
@@ -189,13 +208,13 @@ with tab_main:
             app_data["scene_turn"] = st.text_area("🔄 本章局勢/認知大翻轉", value=app_data.get("scene_turn", ""), height=70, key=f"st_{ver}")
             app_data["reveal_and_mystery"] = st.text_area("🔍 伏筆揭示與新未知懸念", value=app_data.get("reveal_and_mystery", ""), height=70, key=f"rm_{ver}")
 
-        app_data["writing_taboos"] = st.text_area("🚫 寫作禁忌", value=app_data.get("writing_taboos", ""), height=150, key=f"wt_{ver}")
+        app_data["writing_taboos"] = st.text_area("🚫 寫作禁忌", value=app_data.get("writing_taboos", ""), height=120, key=f"wt_{ver}")
 
     st.divider()
     generate_btn = st.button("✨ 開始生成精緻小說內文", type="primary", use_container_width=True, key=f"gen_btn_{ver}")
 
     if st.session_state["just_generated"]:
-        st.success("🎉 最新一章小說生成完成！已依據設定完成伏筆與內文同步！")
+        st.success("🎉 最新一章小說生成完成！已依據設定完成伏筆與雙重文風同步！")
         st.session_state["just_generated"] = False
 
     if app_data.get("generated_content"):
@@ -214,31 +233,29 @@ with tab_main:
         st.markdown("### 📖 全章閱讀預覽 Mode：")
         st.markdown(app_data["generated_content"])
 
-# ---------------- Tab 2: 長線伏筆與案件牆 (支援指定方向與 AI 自動發想) ----------------
+# ---------------- Tab 2: 長線伏筆與案件牆 ----------------
 with tab_foreshadow:
     st.subheader("🔮 長線伏筆與謎團策劃庫")
-    st.caption("💡 這裡記錄了所有 AI 寫作時自動捕捉或由你手動創建的伏筆。你可以指定靈感方向，讓 AI 為你精準發想！")
+    st.caption("💡 這裡記錄了所有 AI 寫作時自動捕捉或由你手動創建的伏筆。你可以指定方向讓 AI 發想，或直接手動填寫！")
     
-    # 🎯 新增：指定伏筆方向與類型的控制面板
     with st.expander("🎯 點此開啟【AI 伏筆靈感定向發想面板】", expanded=True):
         col_f_dir1, col_f_dir2 = st.columns([1, 2])
         with col_f_dir1:
             f_type_selected = st.selectbox(
                 "🏷️ 指定伏筆類型",
-                ["隨機發想 (不限題材)", "🎒 隨身道具/古典物品類", "🏚️ 車廂環境/物理異象類", "👥 配角秘密/身體異變類", "🔒 鐵律漏洞/高維真相類"],
+                ["隨機發想 (不限題材)", "🎒 隨身道具/古典物品類", "🏚️ 車廂環境/異象類", "👥 配角秘密/身體異變類", "🔒 鐵律漏洞/高維真相類"],
                 key=f"f_type_{ver}"
             )
         with col_f_dir2:
             f_custom_prompt = st.text_input(
                 "💬 輸入具體發想方向或關鍵字 (選填)",
-                placeholder="例如：想要一個藏在座椅縫隙裡的20世紀小物，能預警危險但會造成眼部劇痛...",
+                placeholder="例如：第九節餐車廂憑空出現的純銀藥盒，可延遲反噬聲音污染...",
                 key=f"f_custom_{ver}"
             )
 
     col_f_t, col_f_a1, col_f_a2 = st.columns([2, 1, 1])
     with col_f_t: st.markdown("### 📜 全書伏筆追蹤清單")
     
-    # 1. 手動新增伏筆按鈕
     with col_f_a1:
         if st.button("➕ 手動新增伏筆", key=f"add_f_btn_{ver}", use_container_width=True):
             new_f_id = f"f_{datetime.now().strftime('%M%S%f')}"
@@ -252,14 +269,13 @@ with tab_foreshadow:
             })
             st.rerun()
 
-    # 2. 🤖 AI 定向生成伏筆按鈕
     with col_f_a2:
         btn_ai_f = st.button("🤖 依指定方向發想伏筆", type="primary", key=f"ai_gen_f_btn_{ver}", use_container_width=True)
 
     f_list = app_data.get("foreshadowing_list", [])
     
     if not f_list:
-        st.info("💡 目前尚無紀錄中的伏筆。你可以設定上方方向後，點擊『🤖 依指定方向發想伏筆』讓 AI 自動生成！")
+        st.info("💡 目前尚無紀錄中的伏筆。點擊『➕ 手動新增伏筆』直接貼上你的設計，或用『🤖 依指定方向發想伏筆』！")
     else:
         tab_f1, tab_f2, tab_f3 = st.tabs(["📌 待解答/埋下中 (0%-20%)", "🔄 揭露中/推演中 (50%-80%)", "✅ 已完全回收 (100%)"])
         
@@ -308,7 +324,6 @@ with tab_foreshadow:
         if delete_target_id:
             app_data["foreshadowing_list"] = [item for item in app_data["foreshadowing_list"] if item.get("id") != delete_target_id]
             st.rerun()
-
 
 # ---------------- Tab 3: 世界觀與地圖庫 ----------------
 with tab_world:
@@ -549,7 +564,7 @@ if enable_f and f_count > 0:
 else:
     foreshadow_instruction = "本章專注於推進劇情與回收舊伏筆，嚴禁埋下任何新伏筆！請務必將 new_foreshadowing 欄位回傳空陣列 []。"
 
-# ================= 智慧邏輯 1：分鏡腳本拆解 (Agent Workflow Step 1) =================
+# ================= 智慧邏輯 1：分鏡腳本拆解 =================
 if btn_director:
     if not active_api_key:
         st.error("❌ 請先輸入 Gemini API Key！")
@@ -583,28 +598,38 @@ if btn_director:
             except Exception as e:
                 st.error(f"拆解失敗: {str(e)}")
 
-# ================= 智慧邏輯 2：單獨靈感生成新伏筆 =================
+# ================= 智慧邏輯 2：單獨靈感生成新伏筆 (支援定向發想) =================
 if btn_ai_f:
     if not active_api_key:
         st.error("❌ 請先輸入 Gemini API Key！")
     else:
-        with st.spinner("✨ Gemini 正在分析全書 JSON 並靈感發想新伏筆..."):
+        with st.spinner("✨ Gemini 正在依據你指定的方向靈感發想新伏筆..."):
             try:
                 genai.configure(api_key=active_api_key)
                 exist_f_text = "\n".join([f"• {f.get('content')} (真相: {f.get('truth')})" for f in app_data.get("foreshadowing_list", [])])
                 
+                user_direction_prompt = f"• 作者指定的伏筆類型：【{f_type_selected}】\n"
+                if f_custom_prompt.strip():
+                    user_direction_prompt += f"• 作者具體要求的關鍵字/靈感方向：【{f_custom_prompt.strip()}】\n"
+
                 ai_f_prompt = f"""
-你是一位頂級懸疑/規則怪談小說架構師。請仔細閱讀全書背景，單獨發想【1 個全新且絕不重複】的高質感長線伏筆。
+你是一位頂級懸疑/規則怪談小說架構師。請仔細閱讀全書背景，並【嚴格遵循作者指定的方向】，發想【1 個全新且絕不重複】的高質感長線伏筆。
 
 【全書背景】
 • 書名：{app_data.get('book_title')} ({app_data.get('book_theme')})
 • 真相：{app_data.get('book_overall_secret')}
 • 當前章節：第 {app_data.get('current_chap')} 章
 • 既有伏筆：{exist_f_text if exist_f_text else "無"}
-• 🚫 黑名單：{f_blacklist}
+• 🚫 黑名單套路：{f_blacklist}
 
-【要求】
-表面現象必須符合20世紀列車氛圍且為主角可觀察之微小異常。預設進度標籤『0% (剛埋下/僅現象)』。
+【🎯 作者最高優先級發想要求】
+{user_direction_prompt}
+
+【伏筆機制多樣性規範（⚠️ 極重要）】
+1. 伏筆機制【絕不局限於物理特性或科學推導】！可以包含：感官錯覺、記憶認知污染、心理暗示、宗教儀式感、時間悖論、人性選擇等多元維度。
+2. 表面現象 (content) 必須符合 20 世紀貴族列車氛圍，且為主角可觀察到的微小異常。
+3. 預設進度標籤設為『0% (剛埋下/僅現象)』。
+4. 隱藏真相 (truth) 必須具備驚人的反轉感，且能暗中呼應高維資訊互譯或神靈考驗。
 """
                 f_schema = {
                     "type": "OBJECT",
@@ -636,12 +661,12 @@ if btn_ai_f:
                     "current_stage_goal": new_f_data.get("current_stage_goal", "僅維持現象描寫，絕對不可解開！"),
                     "truth": new_f_data.get("truth", "")
                 })
-                st.success("🎉 新伏筆發想完畢！已添加至伏筆庫！")
+                st.success("🎉 定向伏筆發想完畢！已成功添加至伏筆庫！")
                 st.rerun()
             except Exception as e:
                 st.error(f"發想伏筆失敗: {str(e)}")
 
-# ================= 智慧邏輯 3：直連 Gemini API 生成正文與自動銜接 =================
+# ================= 智慧邏輯 3：直連 Gemini API 生成正文與雙文風控制 =================
 if generate_btn:
     if not active_api_key:
         st.error("❌ 找不到 Gemini API Key！請先在『💾 API 設定與存檔管理』頁面填入 Key。")
@@ -665,7 +690,12 @@ if generate_btn:
         director_script_context = f"\n【🎬 導演分鏡腳本參考】\n{st.session_state['director_script']}\n" if st.session_state.get("director_script") else ""
 
         prompt = f"""
-你是一位頂級的懸疑 / 克蘇魯 / 規則怪談小說作家。請根據以下完整的全書世界觀、區域設定與本章微調指令，為我撰寫小說最新一章的純內文。
+你是一位頂級的懸疑 / 克蘇魯 / 規則怪談小說作家。請根據以下寫作風格要求、全書世界觀、區域設定與本章指令，為我撰寫小說最新一章的純內文。
+
+【🔥 最高優先級：雙神級作者寫作風格要求（嚴格執行）】
+1. 🌊 **懸疑/氛圍/對話描寫**：{app_data.get('style_suspense')}
+2. ⚔️ **戰鬥/生死博弈描寫**：{app_data.get('style_battle')}
+* 特別提醒：請專注於真實感官體感、心理描寫與氛圍營造，【切勿使用刻板公式化的物理教科書解說】。
 
 【全書背景】
 • 書名：{app_data.get('book_title')} ({app_data.get('book_theme')})
@@ -760,12 +790,10 @@ if generate_btn:
             next_summary = result_json.get("next_chapter_summary", "")
             new_foreshadows = result_json.get("new_foreshadowing", [])
             
-            # 1. 寫入 Session State 小說內文與預填銜接摘要
             app_data["generated_content"] = novel_text
             if next_summary:
-                app_data["previous_summary"] = next_summary  # 自動預填給下一章使用
+                app_data["previous_summary"] = next_summary
 
-            # 2. 自動將 AI 捕捉到的新伏筆添加進伏筆庫
             if enable_f and f_count > 0:
                 for nf in new_foreshadows:
                     if nf.get("content"):
